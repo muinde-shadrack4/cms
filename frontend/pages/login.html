@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Login — Wells Fargo CMS</title>
+    <link rel="stylesheet" href="../../assets/css/style.css"/>
+</head>
+<body>
+
+<div class="login-page">
+    <div class="login-box">
+
+        <!-- LOGO -->
+        <div class="login-logo">
+            <span class="login-logo-icon">🚚</span>
+            <h1>Wells Fargo CMS</h1>
+            <p>Courier Management System — Nairobi CBD Branch</p>
+        </div>
+
+        <!-- ALERT -->
+        <div class="alert alert-error" id="loginAlert"></div>
+
+        <!-- LOGIN FORM -->
+        <form id="loginForm" onsubmit="handleLogin(event)">
+
+            <div class="form-group">
+                <label class="form-label">Username / Email</label>
+                <input
+                    type="text"
+                    name="username"
+                    class="form-control"
+                    placeholder="Enter your username or email"
+                    autocomplete="username"
+                    required
+                />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input
+                    type="password"
+                    name="password"
+                    class="form-control"
+                    placeholder="Enter your password"
+                    autocomplete="current-password"
+                    required
+                />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Login As</label>
+                <select name="role" class="form-control" required>
+                    <option value="">-- Select Your Role --</option>
+                    <option value="admin">Branch Manager / Admin</option>
+                    <option value="customer_service">Customer Service Rep</option>
+                    <option value="dispatch">Dispatch Officer</option>
+                    <option value="warehouse">Warehouse Staff</option>
+                    <option value="driver">Driver</option>
+                    <option value="customer">Customer</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-dark btn-full btn-lg"
+                    style="margin-top:8px;">
+                LOGIN
+            </button>
+
+        </form>
+
+        <!-- REGISTER LINK -->
+        <div class="login-link">
+            New customer?
+            <a href="customer/register.html">Register here</a>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="login-footer">
+            BUS-242-002/2022 &mdash; Githinji Jecinta Wacheke<br/>
+            Multimedia University of Kenya
+        </div>
+
+    </div>
+</div>
+
+<!-- Scripts -->
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/auth.js"></script>
+
+</body>
+</html>
+```
+
+Press **Ctrl+S**.
+
+Now go to browser:
+```
+http://localhost/courier_cms_v2/frontend/pages/login.html

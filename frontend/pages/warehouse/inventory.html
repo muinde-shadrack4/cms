@@ -1,0 +1,206 @@
+<?php
+require_once '../db.php';
+require_once '../auth.php';
+require_role('warehouse');
+
+$success = '';
+$error   = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['action'] === 'add') {
+    $parcel_id     = intval($_POST['parcel_id']);
+    $shelf_location = trim($_POST['shelf_location']);
+
+    $check = mysqli_prepare($conn,
+        "SELECT inventory_id FROM inventory WHERE parcel_id=?");
+    mysqli_stmt_bind_param($check, "i", $parcel_id);
+    mysqli_stmt_execute($check);
+    $cr = mysqli_stmt_get_result($check);
+    mysqli_stmt_close($check);
+
+    if (mysqli_num_rows($cr) > 0) {
+        $error = "This parcel is already in inventory.";
+    } else {
+        $stmt = mysqli_prepare($conn,
+            "INSERT INTO inventory (parcel_id, shelf_location) VALUES (?,?)");
+        mysqli_stmt_bind_param($stmt, "is", $parcel_id, $shelf_location);
+        if (mysqli_stmt_execute($stmt)) {
+            $success = "Parcel added to shelf $shelf_location!";
+        } else {
+            $error = mysqli_stmt_error($stmt);
+        }
+        mysqli_stmt_close($stmt);
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['action'] === 'remove') {
+    $inv_id = intval($_POST['inventory_id']);
+    $stmt = mysqli_prepare($conn,
+        "DELETE FROM inventory WHERE inventory_id=?");
+    mysqli_stmt_bind_param($stmt, "i", $inv_id);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_close($stmt);
+    $success = "Parcel removed from inventory.";
+}
+
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$where  = $search ? "AND (p.tracking_number LIKE '%$search%'
+                     OR p.recipient_name LIKE '%$search%'
+                     OR i.shelf_location LIKE '%$search%')" : '';
+
+$inventory = mysqli_query($conn,
+    "SELECT i.*, p.tracking_number, p.recipient_name,
+            p.recipient_address, p.weight, p.status,
+            c.name AS customer_name
+     FROM inventory i
+     JOIN parcels p ON i.parcel_id=p.parcel_id
+     JOIN customers c ON p.customer_id=c.customer_id
+     WHERE 1=1 $where ORDER BY i.shelf_location");
+
+$available = mysqli_query($conn,
+    "SELECT p.parcel_id, p.tracking_number, p.recipient_name, p.weight
+     FROM parcels p
+     WHERE p.parcel_id NOT IN (SELECT parcel_id FROM inventory)
+     AND p.status NOT IN ('Delivered','Failed')
+     ORDER BY p.date_registered DESC");
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Inventory — Wells Fargo CMS</title>
+    <link rel="stylesheet" href="../style.css"/>
+</head>
+<body>
+<div class="sidebar">
+    <div class="logo">🚚 Wells Fargo CMS</div>
+    <div class="nav-section">WAREHOUSE</div>
+    <a href="dashboard.php">📊 Dashboard</a>
+    <a href="inventory.php" style="color:#fff;background:#334155;">🏭 Manage Inventory</a>
+    <div class="sidebar-footer">
+        👤 <?= htmlspecialchars($_SESSION['full_name']) ?><br/>
+        Role: Warehouse Staff<br/>
+        <a href="../logout.php" style="color:#ef4444;font-size:11px;">🚪 Logout</a>
+    </div>
+</div>
+<div class="main">
+    <div class="page-header">
+        <h1>Warehouse Inventory</h1>
+        <p>Objective 1 — Manage parcel storage and shelf locations</p>
+    </div>
+
+    <?php if ($success): ?>
+        <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
+    <?php endif; ?>
+    <?php if ($error): ?>
+        <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
+    <?php endif; ?>
+
+    <div class="two-col">
+        <div class="card">
+            <h2>Add Parcel to Warehouse</h2>
+            <form method="POST">
+                <input type="hidden" name="action" value="add"/>
+                <div class="form-group">
+                    <label>Select Parcel <span class="required">*</span></label>
+                    <select name="parcel_id" required>
+                        <option value="">-- Select Parcel --</option>
+                        <?php while($p = mysqli_fetch_assoc($available)): ?>
+                        <option value="<?= $p['parcel_id'] ?>">
+                            <?= htmlspecialchars($p['tracking_number']) ?> —
+                            <?= htmlspecialchars($p['recipient_name']) ?>
+                            (<?= $p['weight'] ?>kg)
+                        </option>
+                        <?php endwhile; ?>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Shelf Location <span class="required">*</span></label>
+                    <input type="text" name="shelf_location"
+                           placeholder="e.g. A1, B3, C2" required/>
+                </div>
+                <div class="info-box">
+                    Assign a shelf for quick parcel retrieval.
+                </div>
+                <button type="submit" class="btn">Add to Warehouse</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Search Inventory</h2>
+            <form method="GET" style="display:flex;gap:10px;margin-bottom:16px;">
+                <input type="text" name="search"
+                       value="<?= htmlspecialchars($search) ?>"
+                       placeholder="Search tracking, recipient or shelf..."
+                       style="flex:1;padding:9px 12px;border:1px solid #d1d5db;
+                              border-radius:6px;font-size:13px;outline:none;"/>
+                <button type="submit" class="track-btn">Search</button>
+            </form>
+            <?php if ($search): ?>
+            <p style="font-size:12px;color:#64748b;">
+                Results for: <strong><?= htmlspecialchars($search) ?></strong>
+                <a href="inventory.php" style="color:#2563eb;margin-left:8px;">
+                    Clear</a>
+            </p>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Current Inventory (<?= mysqli_num_rows($inventory) ?> parcels)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Shelf</th><th>Tracking No.</th><th>Sender</th>
+                    <th>Recipient</th><th>Weight</th>
+                    <th>Status</th><th>Received</th><th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php
+            $count = 0;
+            while($item = mysqli_fetch_assoc($inventory)):
+                $count++;
+            ?>
+            <tr>
+                <td><span style="background:#1e293b;color:#fff;padding:4px 10px;
+                                 border-radius:4px;font-weight:700;">
+                    <?= htmlspecialchars($item['shelf_location']) ?></span></td>
+                <td><span class="tracking">
+                    <?= htmlspecialchars($item['tracking_number']) ?></span></td>
+                <td><?= htmlspecialchars($item['customer_name']) ?></td>
+                <td><?= htmlspecialchars($item['recipient_name']) ?></td>
+                <td><?= $item['weight'] ?> kg</td>
+                <td><span class="badge badge-<?= strtolower(
+                    str_replace(' ','-',$item['status'])) ?>">
+                    <?= $item['status'] ?></span></td>
+                <td><?= date('d M Y',strtotime($item['received_date'])) ?></td>
+                <td>
+                    <form method="POST" style="margin:0;"
+                          onsubmit="return confirm('Remove from inventory?')">
+                        <input type="hidden" name="action" value="remove"/>
+                        <input type="hidden" name="inventory_id"
+                               value="<?= $item['inventory_id'] ?>"/>
+                        <button type="submit"
+                                style="background:#fee2e2;color:#991b1b;border:none;
+                                       padding:4px 10px;border-radius:4px;
+                                       cursor:pointer;font-size:12px;">
+                            Remove
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            <?php endwhile; ?>
+            <?php if ($count === 0): ?>
+            <tr>
+                <td colspan="8" style="text-align:center;
+                                       color:#94a3b8;padding:20px;">
+                    <?= $search ? 'No results found.' : 'No parcels in warehouse yet.' ?>
+                </td>
+            </tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

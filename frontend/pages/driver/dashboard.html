@@ -1,0 +1,109 @@
+<?php
+require_once '../db.php';
+require_once '../auth.php';
+require_role('driver');
+
+$driver_id = $_SESSION['user_id'];
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Driver Dashboard — Wells Fargo CMS</title>
+    <link rel="stylesheet" href="../style.css"/>
+</head>
+<body>
+<div class="sidebar">
+    <div class="logo">🚚 Wells Fargo CMS</div>
+    <div class="nav-section">DRIVER</div>
+    <a href="dashboard.php" style="color:#fff;background:#334155;">📊 My Deliveries</a>
+    <a href="update_status.php">🔄 Update Status</a>
+    <div class="sidebar-footer">
+        👤 <?= htmlspecialchars($_SESSION['full_name']) ?><br/>
+        Role: Driver<br/>
+        <a href="../logout.php" style="color:#ef4444;font-size:11px;">🚪 Logout</a>
+    </div>
+</div>
+<div class="main">
+    <div class="page-header">
+        <h1>My Deliveries</h1>
+        <p>Welcome, <?= htmlspecialchars($_SESSION['full_name']) ?> — your assigned parcels</p>
+    </div>
+    <?php
+    $my_parcels = mysqli_fetch_assoc(mysqli_query($conn,
+        "SELECT COUNT(*) AS t FROM parcels
+         WHERE assigned_driver_id=$driver_id
+         AND status NOT IN ('Delivered','Failed')"))['t'];
+    $completed = mysqli_fetch_assoc(mysqli_query($conn,
+        "SELECT COUNT(*) AS t FROM parcels
+         WHERE assigned_driver_id=$driver_id AND status='Delivered'"))['t'];
+    ?>
+    <div class="stats" style="grid-template-columns:repeat(2,1fr);max-width:400px;">
+        <div class="stat-card">
+            <div class="stat-icon">📦</div>
+            <div class="stat-num"><?= $my_parcels ?></div>
+            <div class="stat-label">Active Deliveries</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">✅</div>
+            <div class="stat-num"><?= $completed ?></div>
+            <div class="stat-label">Completed</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display:flex;justify-content:space-between;
+                    align-items:center;margin-bottom:16px;">
+            <h2>My Assigned Parcels</h2>
+            <a href="update_status.php" class="track-btn">Update Status →</a>
+        </div>
+        <?php
+        $parcels = mysqli_query($conn,
+            "SELECT p.*, c.name AS customer_name FROM parcels p
+             JOIN customers c ON p.customer_id=c.customer_id
+             WHERE p.assigned_driver_id=$driver_id
+             ORDER BY p.assigned_at DESC");
+        ?>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tracking No.</th>
+                    <th>Recipient</th>
+                    <th>Address</th>
+                    <th>Zone</th>
+                    <th>Weight</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php
+            $count = 0;
+            while($p = mysqli_fetch_assoc($parcels)):
+                $count++;
+            ?>
+            <tr>
+                <td><span class="tracking">
+                    <?= htmlspecialchars($p['tracking_number']) ?></span></td>
+                <td><?= htmlspecialchars($p['recipient_name']) ?></td>
+                <td><?= htmlspecialchars($p['recipient_address']) ?></td>
+                <td><?= $p['zone'] ?></td>
+                <td><?= $p['weight'] ?> kg</td>
+                <td><span class="badge badge-<?= strtolower(
+                    str_replace(' ','-',$p['status'])) ?>">
+                    <?= $p['status'] ?></span></td>
+            </tr>
+            <?php endwhile; ?>
+            <?php if ($count === 0): ?>
+            <tr>
+                <td colspan="6" style="text-align:center;
+                                       color:#94a3b8;padding:20px;">
+                    No parcels assigned to you yet.
+                </td>
+            </tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

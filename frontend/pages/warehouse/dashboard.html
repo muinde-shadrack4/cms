@@ -1,0 +1,100 @@
+<?php
+require_once '../db.php';
+require_once '../auth.php';
+require_role('warehouse');
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Warehouse Dashboard — Wells Fargo CMS</title>
+    <link rel="stylesheet" href="../style.css"/>
+</head>
+<body>
+<div class="sidebar">
+    <div class="logo">🚚 Wells Fargo CMS</div>
+    <div class="nav-section">WAREHOUSE</div>
+    <a href="dashboard.php" style="color:#fff;background:#334155;">📊 Dashboard</a>
+    <a href="inventory.php">🏭 Manage Inventory</a>
+    <div class="sidebar-footer">
+        👤 <?= htmlspecialchars($_SESSION['full_name']) ?><br/>
+        Role: Warehouse Staff<br/>
+        <a href="../logout.php" style="color:#ef4444;font-size:11px;">🚪 Logout</a>
+    </div>
+</div>
+<div class="main">
+    <div class="page-header">
+        <h1>Warehouse Dashboard</h1>
+        <p>Welcome, <?= htmlspecialchars($_SESSION['full_name']) ?></p>
+    </div>
+    <?php
+    $in_warehouse = mysqli_fetch_assoc(mysqli_query($conn,
+        "SELECT COUNT(*) AS t FROM inventory"))['t'];
+    $shelves = mysqli_fetch_assoc(mysqli_query($conn,
+        "SELECT COUNT(DISTINCT shelf_location) AS t FROM inventory"))['t'];
+    ?>
+    <div class="stats" style="grid-template-columns:repeat(2,1fr);max-width:400px;">
+        <div class="stat-card">
+            <div class="stat-icon">📦</div>
+            <div class="stat-num"><?= $in_warehouse ?></div>
+            <div class="stat-label">Parcels in Warehouse</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🗄️</div>
+            <div class="stat-num"><?= $shelves ?></div>
+            <div class="stat-label">Shelf Locations</div>
+        </div>
+    </div>
+    <div class="card">
+        <div style="display:flex;justify-content:space-between;
+                    align-items:center;margin-bottom:16px;">
+            <h2>Current Inventory</h2>
+            <a href="inventory.php" class="track-btn">Manage →</a>
+        </div>
+        <?php
+        $items = mysqli_query($conn,
+            "SELECT i.shelf_location, p.tracking_number,
+                    p.recipient_name, p.status, i.received_date
+             FROM inventory i
+             JOIN parcels p ON i.parcel_id=p.parcel_id
+             ORDER BY i.shelf_location");
+        ?>
+        <table>
+            <thead>
+                <tr>
+                    <th>Shelf</th><th>Tracking No.</th>
+                    <th>Recipient</th><th>Status</th><th>Received</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php
+            $count = 0;
+            while($item = mysqli_fetch_assoc($items)):
+                $count++;
+            ?>
+            <tr>
+                <td><span style="background:#1e293b;color:#fff;padding:3px 8px;
+                                 border-radius:4px;font-weight:700;">
+                    <?= htmlspecialchars($item['shelf_location']) ?></span></td>
+                <td><span class="tracking">
+                    <?= htmlspecialchars($item['tracking_number']) ?></span></td>
+                <td><?= htmlspecialchars($item['recipient_name']) ?></td>
+                <td><span class="badge badge-<?= strtolower(
+                    str_replace(' ','-',$item['status'])) ?>">
+                    <?= $item['status'] ?></span></td>
+                <td><?= date('d M Y',strtotime($item['received_date'])) ?></td>
+            </tr>
+            <?php endwhile; ?>
+            <?php if ($count === 0): ?>
+            <tr>
+                <td colspan="5" style="text-align:center;color:#94a3b8;padding:20px;">
+                    No parcels in warehouse yet.
+                </td>
+            </tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>
