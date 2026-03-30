@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Register — Wells Fargo CMS</title>
+    <link rel="stylesheet" href="../../assets/css/style.css"/>
+</head>
+<body>
+<div class="login-page">
+    <div class="login-box">
+        <div class="login-logo">
+            <span class="login-logo-icon">🚚</span>
+            <h1>Create Account</h1>
+            <p>Wells Fargo Courier — Customer Registration</p>
+        </div>
+
+        <div class="alert alert-success" id="alertSuccess"></div>
+        <div class="alert alert-error"   id="alertError"></div>
+
+        <form id="registerForm" onsubmit="handleRegister(event)">
+            <div class="form-group">
+                <label class="form-label">
+                    Full Name <span class="required">*</span>
+                </label>
+                <input type="text" name="name" class="form-control"
+                       placeholder="e.g. Jane Wanjiru" required/>
+            </div>
+            <div class="form-group">
+                <label class="form-label">
+                    Email Address <span class="required">*</span>
+                </label>
+                <input type="email" name="email" class="form-control"
+                       placeholder="e.g. jane@gmail.com" required/>
+            </div>
+            <div class="form-group">
+                <label class="form-label">
+                    Phone Number <span class="required">*</span>
+                </label>
+                <input type="text" name="phone" class="form-control"
+                       placeholder="e.g. 0712345678" required/>
+            </div>
+            <div class="form-group">
+                <label class="form-label">
+                    Password <span class="required">*</span>
+                </label>
+                <input type="password" name="password" class="form-control"
+                       placeholder="Create a strong password" required/>
+            </div>
+            <button type="submit" id="regBtn"
+                    class="btn btn-dark btn-full btn-lg"
+                    style="margin-top:8px;">
+                Create Account
+            </button>
+        </form>
+
+        <div class="login-link">
+            Already have an account?
+            <a href="../login.html">Login here</a>
+        </div>
+
+        <div class="login-footer">
+            BUS-242-002/2022 &mdash; Githinji Jecinta Wacheke<br/>
+            Multimedia University of Kenya
+        </div>
+    </div>
+</div>
+
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/auth.js"></script>
+<script>
+async function handleRegister(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn  = document.getElementById('regBtn');
+    setLoading(btn, true);
+
+    try {
+        const res = await API.customers.create({
+            name:     form.name.value.trim(),
+            email:    form.email.value.trim(),
+            phone:    form.phone.value.trim(),
+            password: form.password.value
+        });
+
+        if (res.status === 'success') {
+            showAlert('alertSuccess',
+                'Account created successfully! You can now login.', 'success');
+            form.reset();
+            setTimeout(() => {
+                window.location.href = '../login.html';
+            }, 2000);
+        } else {
+            showAlert('alertError',
+                res.message || 'Registration failed.', 'error');
+        }
+    } catch(e) {
+        showAlert('alertError',
+            'Failed to register. Email may already be in use.', 'error');
+    }
+    setLoading(btn, false);
+}
+</script>
+</body>
+</html>

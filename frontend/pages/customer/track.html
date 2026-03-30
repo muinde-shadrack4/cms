@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Track Parcel — Wells Fargo CMS</title>
+    <link rel="stylesheet" href="../../assets/css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-icon">🚚</span>
+            <div class="sidebar-logo-text">
+                <span class="sidebar-logo-title">Wells Fargo CMS</span>
+                <span class="sidebar-logo-sub">Nairobi CBD Branch</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">My Account</div>
+            <a class="nav-link" href="dashboard.html">
+                <span class="nav-icon">📦</span> My Parcels
+            </a>
+            <a class="nav-link active" href="track.html">
+                <span class="nav-icon">🔍</span> Track Parcel
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar" id="userAvatar">CU</div>
+                <div>
+                    <div class="sidebar-user-name" id="userName">—</div>
+                    <div class="sidebar-user-role" id="userRole">Customer</div>
+                </div>
+            </div>
+            <a class="logout-btn" onclick="logout()">🚪 Logout</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header">
+            <h1>Track My Parcel</h1>
+            <p>Enter your tracking number to see the current status</p>
+        </div>
+
+        <!-- SEARCH -->
+        <div class="card" style="padding:18px;margin-bottom:20px;">
+            <div class="search-bar">
+                <input type="text" class="search-input" id="trackingInput"
+                       placeholder="Enter tracking number — e.g. WF-2026-1234567"
+                       style="font-family:var(--font-mono);
+                              text-transform:uppercase;"
+                       onkeydown="if(event.key==='Enter') trackParcel()"/>
+                <button class="btn btn-primary"
+                        onclick="trackParcel()">
+                    🔍 Track
+                </button>
+            </div>
+        </div>
+
+        <div class="alert alert-error" id="alertError"></div>
+
+        <!-- RESULT -->
+        <div id="resultSection" style="display:none;">
+
+            <!-- PARCEL DETAILS -->
+            <div class="card" id="parcelCard">
+                <div class="card-header">
+                    <h2>Parcel Details</h2>
+                    <span id="statusBadgeEl"></span>
+                </div>
+                <div class="detail-grid" id="parcelDetails"></div>
+            </div>
+
+            <!-- TIMELINE -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Tracking History</h2>
+                </div>
+                <div class="timeline" id="timeline"></div>
+            </div>
+        </div>
+
+        <!-- NOT FOUND -->
+        <div id="notFound" style="display:none;">
+            <div class="card not-found">
+                <div class="not-found-icon">🔎</div>
+                <h3>Parcel Not Found</h3>
+                <p>No parcel found with that tracking number.
+                   Please check and try again.</p>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/auth.js"></script>
+<script>
+let currentUser = null;
+
+async function init() {
+    currentUser = await checkAuth('customer');
+    if (!currentUser) return;
+    populateSidebar(currentUser);
+}
+
+async function trackParcel() {
+    const input   = document.getElementById('trackingInput');
+    const tracking = input.value.trim().toUpperCase();
+
+    if (!tracking) return;
+
+    document.getElementById('resultSection').style.display = 'none';
+    document.getElementById('notFound').style.display      = 'none';
+
+    try {
+        const res = await API.parcels.getByTracking(tracking);
+
+        if (!res.data) {
+            document.getElementById('notFound').style.display = 'block';
+            return;
+        }
+
+        const parcel = res.data;
+
+        // Status badge
+        document.getElementById('statusBadgeEl').innerHTML =
+            `<span class="badge badge-${parcel.status
+                .toLowerCase().replace(/\s+/g,'-')}"
+                   style="font-size:13px;padding:6px 14px;">
+                ${parcel.status}
+            </span>`;
+
+        // Details grid
+        document.getElementById('parcelDetails').innerHTML = `
+            <div class="detail-item">
+                <div class="detail-label">Tracking Number</div>
+                <div class="detail-value"
+                     style="font-family:var(--font-mono);font-size:13px;">
+                    ${parcel.tracking_number}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Recipient</div>
+                <div class="detail-value">${parcel.recipient_name}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Delivery Address</div>
+                <div class="detail-value">${parcel.recipient_address}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Service Type</div>
+                <div class="detail-value">
+                    ${parcel.service_type.charAt(0).toUpperCase() +
+                      parcel.service_type.slice(1)}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Price</div>
+                <div class="detail-value">
+                    <strong>${formatKES(parcel.price)}</strong></div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Booked On</div>
+                <div class="detail-value">
+                    ${formatDate(parcel.date_registered)}</div>
+            </div>
+        `;
+
+        // Tracking history
+        const histRes  = await API.tracking.getHistory(parcel.parcel_id);
+        const updates  = histRes.data || [];
+        const timeline = document.getElementById('timeline');
+
+        if (!updates.length) {
+            timeline.innerHTML = `<p class="text-muted"
+                style="padding:20px 0;">No tracking updates yet.</p>`;
+        } else {
+            timeline.innerHTML = updates.map((u, i) => `
+                <div class="tl-item">
+                    <div class="tl-dot ${
+                        i === updates.length-1 ? 'active' : ''}">
+                    </div>
+                    <div class="tl-content">
+                        <div class="tl-status">${u.status}</div>
+                        ${u.location
+                            ? `<div class="tl-loc">📍 ${u.location}</div>`
+                            : ''}
+                        ${u.notes
+                            ? `<div class="tl-loc">${u.notes}</div>`
+                            : ''}
+                        <div class="tl-meta">
+                            ${formatDate(u.updated_at)}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('resultSection').style.display = 'block';
+
+    } catch(e) {
+        document.getElementById('notFound').style.display = 'block';
+    }
+}
+
+init();
+</script>
+</body>
+</html>

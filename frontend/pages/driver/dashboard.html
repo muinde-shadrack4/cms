@@ -1,109 +1,156 @@
-<?php
-require_once '../db.php';
-require_once '../auth.php';
-require_role('driver');
-
-$driver_id = $_SESSION['user_id'];
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Driver Dashboard — Wells Fargo CMS</title>
-    <link rel="stylesheet" href="../style.css"/>
+    <link rel="stylesheet" href="../../assets/css/style.css"/>
 </head>
 <body>
-<div class="sidebar">
-    <div class="logo">🚚 Wells Fargo CMS</div>
-    <div class="nav-section">DRIVER</div>
-    <a href="dashboard.php" style="color:#fff;background:#334155;">📊 My Deliveries</a>
-    <a href="update_status.php">🔄 Update Status</a>
-    <div class="sidebar-footer">
-        👤 <?= htmlspecialchars($_SESSION['full_name']) ?><br/>
-        Role: Driver<br/>
-        <a href="../logout.php" style="color:#ef4444;font-size:11px;">🚪 Logout</a>
-    </div>
-</div>
-<div class="main">
-    <div class="page-header">
-        <h1>My Deliveries</h1>
-        <p>Welcome, <?= htmlspecialchars($_SESSION['full_name']) ?> — your assigned parcels</p>
-    </div>
-    <?php
-    $my_parcels = mysqli_fetch_assoc(mysqli_query($conn,
-        "SELECT COUNT(*) AS t FROM parcels
-         WHERE assigned_driver_id=$driver_id
-         AND status NOT IN ('Delivered','Failed')"))['t'];
-    $completed = mysqli_fetch_assoc(mysqli_query($conn,
-        "SELECT COUNT(*) AS t FROM parcels
-         WHERE assigned_driver_id=$driver_id AND status='Delivered'"))['t'];
-    ?>
-    <div class="stats" style="grid-template-columns:repeat(2,1fr);max-width:400px;">
-        <div class="stat-card">
-            <div class="stat-icon">📦</div>
-            <div class="stat-num"><?= $my_parcels ?></div>
-            <div class="stat-label">Active Deliveries</div>
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-icon">🚚</span>
+            <div class="sidebar-logo-text">
+                <span class="sidebar-logo-title">Wells Fargo CMS</span>
+                <span class="sidebar-logo-sub">Nairobi CBD Branch</span>
+            </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon">✅</div>
-            <div class="stat-num"><?= $completed ?></div>
-            <div class="stat-label">Completed</div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">Driver</div>
+            <a class="nav-link active" href="dashboard.html">
+                <span class="nav-icon">📦</span> My Deliveries
+            </a>
+            <a class="nav-link" href="update_status.html">
+                <span class="nav-icon">🔄</span> Update Status
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar" id="userAvatar">DR</div>
+                <div>
+                    <div class="sidebar-user-name" id="userName">—</div>
+                    <div class="sidebar-user-role" id="userRole">—</div>
+                </div>
+            </div>
+            <a class="logout-btn" onclick="logout()">🚪 Logout</a>
         </div>
-    </div>
+    </aside>
 
-    <div class="card">
-        <div style="display:flex;justify-content:space-between;
-                    align-items:center;margin-bottom:16px;">
-            <h2>My Assigned Parcels</h2>
-            <a href="update_status.php" class="track-btn">Update Status →</a>
+    <main class="main-content">
+        <div class="page-header page-header-row">
+            <div>
+                <h1>My Deliveries</h1>
+                <p id="welcomeMsg">Welcome back</p>
+            </div>
+            <button class="btn btn-primary"
+                    onclick="location.href='update_status.html'">
+                🔄 Update Status
+            </button>
         </div>
-        <?php
-        $parcels = mysqli_query($conn,
-            "SELECT p.*, c.name AS customer_name FROM parcels p
-             JOIN customers c ON p.customer_id=c.customer_id
-             WHERE p.assigned_driver_id=$driver_id
-             ORDER BY p.assigned_at DESC");
-        ?>
-        <table>
-            <thead>
-                <tr>
-                    <th>Tracking No.</th>
-                    <th>Recipient</th>
-                    <th>Address</th>
-                    <th>Zone</th>
-                    <th>Weight</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php
-            $count = 0;
-            while($p = mysqli_fetch_assoc($parcels)):
-                $count++;
-            ?>
-            <tr>
-                <td><span class="tracking">
-                    <?= htmlspecialchars($p['tracking_number']) ?></span></td>
-                <td><?= htmlspecialchars($p['recipient_name']) ?></td>
-                <td><?= htmlspecialchars($p['recipient_address']) ?></td>
-                <td><?= $p['zone'] ?></td>
-                <td><?= $p['weight'] ?> kg</td>
-                <td><span class="badge badge-<?= strtolower(
-                    str_replace(' ','-',$p['status'])) ?>">
-                    <?= $p['status'] ?></span></td>
-            </tr>
-            <?php endwhile; ?>
-            <?php if ($count === 0): ?>
-            <tr>
-                <td colspan="6" style="text-align:center;
-                                       color:#94a3b8;padding:20px;">
-                    No parcels assigned to you yet.
-                </td>
-            </tr>
-            <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
+
+        <div class="alert alert-error" id="alertError"></div>
+
+        <div class="stats-grid"
+             style="grid-template-columns:repeat(2,1fr);max-width:400px;">
+            <div class="stat-card">
+                <div class="stat-icon-wrap amber">📦</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statActive">—</div>
+                    <div class="stat-label">Active Deliveries</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap green">✅</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statDone">—</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>My Assigned Parcels</h2>
+                <button class="btn btn-outline btn-sm"
+                        onclick="location.href='update_status.html'">
+                    Update Status →
+                </button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tracking No.</th>
+                            <th>Recipient</th>
+                            <th>Address</th>
+                            <th>Zone</th>
+                            <th>Weight</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="parcelsTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
 </div>
+
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/auth.js"></script>
+<script>
+let currentUser = null;
+
+async function init() {
+    currentUser = await checkAuth('driver');
+    if (!currentUser) return;
+    populateSidebar(currentUser);
+    document.getElementById('welcomeMsg').textContent =
+        `Welcome, ${currentUser.full_name}`;
+    await loadParcels();
+}
+
+async function loadParcels() {
+    try {
+        const res = await API.dispatch.getByDriver(currentUser.user_id);
+        const parcels = res.data || [];
+
+        const active = parcels.filter(p =>
+            !['Delivered','Failed'].includes(p.status));
+        const done   = parcels.filter(p => p.status === 'Delivered');
+
+        document.getElementById('statActive').textContent = active.length;
+        document.getElementById('statDone').textContent   = done.length;
+
+        const tbody = document.getElementById('parcelsTable');
+        if (!parcels.length) {
+            tbody.innerHTML = `<tr><td colspan="6">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📦</div>
+                    <h3>No parcels assigned yet</h3>
+                    <p>The dispatch officer will assign parcels to you</p>
+                </div></td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = parcels.map(p => `
+            <tr>
+                <td>${trackingBadge(p.tracking_number)}</td>
+                <td><strong>${p.recipient_name}</strong></td>
+                <td style="font-size:12px;
+                     color:var(--color-text-secondary);">
+                    ${p.recipient_address}</td>
+                <td>${p.zone}</td>
+                <td>${p.weight} kg</td>
+                <td>${statusBadge(p.status)}</td>
+            </tr>
+        `).join('');
+    } catch(e) {
+        showAlert('alertError', 'Failed to load parcels.', 'error');
+    }
+}
+
+init();
+</script>
 </body>
 </html>

@@ -1,191 +1,200 @@
-<?php
-require_once '../db.php';
-require_once '../auth.php';
-require_role('driver');
-
-$driver_id = $_SESSION['user_id'];
-$driver_name = $_SESSION['full_name'];
-$success = '';
-$error   = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $parcel_id  = intval($_POST['parcel_id']);
-    $new_status = $_POST['new_status'];
-    $location   = trim($_POST['location']);
-    $notes      = trim($_POST['notes']);
-
-    // Verify this parcel belongs to this driver
-    $check = mysqli_prepare($conn,
-        "SELECT parcel_id FROM parcels
-         WHERE parcel_id=? AND assigned_driver_id=?");
-    mysqli_stmt_bind_param($check, "ii", $parcel_id, $driver_id);
-    mysqli_stmt_execute($check);
-    $res = mysqli_stmt_get_result($check);
-    mysqli_stmt_close($check);
-
-    if (mysqli_num_rows($res) > 0) {
-        // Update parcel status
-        $stmt = mysqli_prepare($conn,
-            "UPDATE parcels SET status=? WHERE parcel_id=?");
-        mysqli_stmt_bind_param($stmt, "si", $new_status, $parcel_id);
-        mysqli_stmt_execute($stmt);
-        mysqli_stmt_close($stmt);
-
-        // Log tracking update
-        $stmt2 = mysqli_prepare($conn,
-            "INSERT INTO tracking_updates
-             (parcel_id, status, location, notes, updated_by)
-             VALUES (?,?,?,?,?)");
-        mysqli_stmt_bind_param($stmt2, "issss",
-            $parcel_id, $new_status, $location, $notes, $driver_name);
-        mysqli_stmt_execute($stmt2);
-        mysqli_stmt_close($stmt2);
-
-        // Update dispatch assignment status
-        $stmt3 = mysqli_prepare($conn,
-            "UPDATE dispatch_assignments SET status=?
-             WHERE parcel_id=? AND driver_id=?");
-        mysqli_stmt_bind_param($stmt3, "sii",
-            $new_status, $parcel_id, $driver_id);
-        mysqli_stmt_execute($stmt3);
-        mysqli_stmt_close($stmt3);
-
-        $success = "Status updated to '$new_status' successfully!";
-    } else {
-        $error = "You can only update parcels assigned to you.";
-    }
-}
-
-// Get driver's parcels
-$my_parcels = mysqli_query($conn,
-    "SELECT p.*, c.name AS customer_name FROM parcels p
-     JOIN customers c ON p.customer_id=c.customer_id
-     WHERE p.assigned_driver_id=$driver_id
-     AND p.status NOT IN ('Delivered','Failed')
-     ORDER BY p.assigned_at ASC");
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Update Status — Wells Fargo CMS</title>
-    <link rel="stylesheet" href="../style.css"/>
+    <link rel="stylesheet" href="../../assets/css/style.css"/>
 </head>
 <body>
-<div class="sidebar">
-    <div class="logo">🚚 Wells Fargo CMS</div>
-    <div class="nav-section">DRIVER</div>
-    <a href="dashboard.php">📊 My Deliveries</a>
-    <a href="update_status.php" style="color:#fff;background:#334155;">🔄 Update Status</a>
-    <div class="sidebar-footer">
-        👤 <?= htmlspecialchars($_SESSION['full_name']) ?><br/>
-        Role: Driver<br/>
-        <a href="../logout.php" style="color:#ef4444;font-size:11px;">🚪 Logout</a>
-    </div>
-</div>
-<div class="main">
-    <div class="page-header">
-        <h1>Update Delivery Status</h1>
-        <p>Objective 3 — Update the status of your assigned parcels</p>
-    </div>
-
-    <?php if ($success): ?>
-        <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
-    <?php endif; ?>
-    <?php if ($error): ?>
-        <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
-    <?php endif; ?>
-
-    <div class="two-col">
-        <div class="card">
-            <h2>Update Parcel Status</h2>
-            <form method="POST">
-                <div class="form-group">
-                    <label>Select Parcel <span class="required">*</span></label>
-                    <select name="parcel_id" required>
-                        <option value="">-- Select Your Parcel --</option>
-                        <?php
-                        mysqli_data_seek($my_parcels, 0);
-                        while($p = mysqli_fetch_assoc($my_parcels)): ?>
-                        <option value="<?= $p['parcel_id'] ?>">
-                            <?= htmlspecialchars($p['tracking_number']) ?> —
-                            <?= htmlspecialchars($p['recipient_name']) ?>
-                        </option>
-                        <?php endwhile; ?>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>New Status <span class="required">*</span></label>
-                    <select name="new_status" required>
-                        <option value="Picked Up">Picked Up</option>
-                        <option value="In Transit">In Transit</option>
-                        <option value="Out for Delivery">Out for Delivery</option>
-                        <option value="Delivered">Delivered ✅</option>
-                        <option value="Failed">Failed Delivery ❌</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Current Location</label>
-                    <input type="text" name="location"
-                           placeholder="e.g. Westlands roundabout"/>
-                </div>
-                <div class="form-group">
-                    <label>Notes</label>
-                    <input type="text" name="notes"
-                           placeholder="e.g. Delivered to gate"/>
-                </div>
-                <div class="info-box">
-                    You can only update parcels assigned to you.
-                </div>
-                <button type="submit" class="btn">Update Status</button>
-            </form>
-            <div style="margin-top:16px;padding:12px;background:#f8fafc;
-                        border-radius:6px;font-size:12px;color:#374151;">
-                <strong>Checkpoints:</strong><br/>
-                Picked Up → In Transit → Out for Delivery → Delivered
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-icon">🚚</span>
+            <div class="sidebar-logo-text">
+                <span class="sidebar-logo-title">Wells Fargo CMS</span>
+                <span class="sidebar-logo-sub">Nairobi CBD Branch</span>
             </div>
         </div>
-
-        <div class="card">
-            <h2>My Active Parcels</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Tracking</th>
-                        <th>Recipient</th>
-                        <th>Zone</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                <?php
-                mysqli_data_seek($my_parcels, 0);
-                $count = 0;
-                while($p = mysqli_fetch_assoc($my_parcels)):
-                    $count++;
-                ?>
-                <tr>
-                    <td><span class="tracking">
-                        <?= htmlspecialchars($p['tracking_number']) ?></span></td>
-                    <td><?= htmlspecialchars($p['recipient_name']) ?></td>
-                    <td><?= $p['zone'] ?></td>
-                    <td><span class="badge badge-<?= strtolower(
-                        str_replace(' ','-',$p['status'])) ?>">
-                        <?= $p['status'] ?></span></td>
-                </tr>
-                <?php endwhile; ?>
-                <?php if ($count === 0): ?>
-                <tr>
-                    <td colspan="4" style="text-align:center;
-                                           color:#94a3b8;padding:20px;">
-                        No active parcels assigned to you.
-                    </td>
-                </tr>
-                <?php endif; ?>
-                </tbody>
-            </table>
+        <nav class="sidebar-nav">
+            <div class="nav-section">Driver</div>
+            <a class="nav-link" href="dashboard.html">
+                <span class="nav-icon">📦</span> My Deliveries
+            </a>
+            <a class="nav-link active" href="update_status.html">
+                <span class="nav-icon">🔄</span> Update Status
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar" id="userAvatar">DR</div>
+                <div>
+                    <div class="sidebar-user-name" id="userName">—</div>
+                    <div class="sidebar-user-role" id="userRole">—</div>
+                </div>
+            </div>
+            <a class="logout-btn" onclick="logout()">🚪 Logout</a>
         </div>
-    </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header">
+            <h1>Update Delivery Status</h1>
+            <p>Objective 3 — Update status of your assigned parcels</p>
+        </div>
+
+        <div class="alert alert-success" id="alertSuccess"></div>
+        <div class="alert alert-error"   id="alertError"></div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-header"><h2>Update Status</h2></div>
+                <form id="updateForm" onsubmit="handleUpdate(event)">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Select Parcel <span class="required">*</span>
+                        </label>
+                        <select name="parcel_id" id="parcelSelect"
+                                class="form-control" required>
+                            <option value="">-- Select Your Parcel --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            New Status <span class="required">*</span>
+                        </label>
+                        <select name="new_status" class="form-control"
+                                required>
+                            <option value="Picked Up">Picked Up</option>
+                            <option value="In Transit">In Transit</option>
+                            <option value="Out for Delivery">
+                                Out for Delivery</option>
+                            <option value="Delivered">Delivered ✅</option>
+                            <option value="Failed">Failed Delivery ❌</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Current Location</label>
+                        <input type="text" name="location"
+                               class="form-control"
+                               placeholder="e.g. Westlands roundabout"/>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Notes</label>
+                        <input type="text" name="notes"
+                               class="form-control"
+                               placeholder="e.g. Delivered to gate"/>
+                    </div>
+                    <div class="info-box">
+                        You can only update parcels assigned to you.
+                        Checkpoints: Picked Up → In Transit →
+                        Out for Delivery → Delivered
+                    </div>
+                    <button type="submit" id="updateBtn"
+                            class="btn btn-primary btn-full">
+                        Update Status
+                    </button>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><h2>My Active Parcels</h2></div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tracking</th>
+                                <th>Recipient</th>
+                                <th>Zone</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="parcelsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
 </div>
+
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/auth.js"></script>
+<script>
+let currentUser = null;
+
+async function init() {
+    currentUser = await checkAuth('driver');
+    if (!currentUser) return;
+    populateSidebar(currentUser);
+    await loadParcels();
+}
+
+async function loadParcels() {
+    try {
+        const res = await API.dispatch.getByDriver(currentUser.user_id);
+        const active = (res.data || []).filter(p =>
+            !['Delivered','Failed'].includes(p.status));
+
+        const sel = document.getElementById('parcelSelect');
+        sel.innerHTML = '<option value="">-- Select Your Parcel --</option>';
+        active.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.parcel_id;
+            opt.textContent =
+                `${p.tracking_number} — ${p.recipient_name}`;
+            sel.appendChild(opt);
+        });
+
+        const tbody = document.getElementById('parcelsTable');
+        if (!active.length) {
+            tbody.innerHTML = `<tr><td colspan="4">
+                <div class="empty-state">
+                    <div class="empty-state-icon">✅</div>
+                    <h3>No active deliveries</h3>
+                </div></td></tr>`;
+            return;
+        }
+        tbody.innerHTML = active.map(p => `
+            <tr>
+                <td>${trackingBadge(p.tracking_number)}</td>
+                <td>${p.recipient_name}</td>
+                <td>${p.zone}</td>
+                <td>${statusBadge(p.status)}</td>
+            </tr>
+        `).join('');
+    } catch(e) {}
+}
+
+async function handleUpdate(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn  = document.getElementById('updateBtn');
+    setLoading(btn, true);
+
+    try {
+        const res = await API.tracking.update({
+            parcel_id:  parseInt(form.parcel_id.value),
+            new_status: form.new_status.value,
+            location:   form.location.value.trim(),
+            notes:      form.notes.value.trim(),
+            updated_by: currentUser.full_name
+        });
+
+        if (res.status === 'success') {
+            showAlert('alertSuccess',
+                `Status updated to '${form.new_status.value}'!`, 'success');
+            form.reset();
+            await loadParcels();
+        } else {
+            showAlert('alertError', res.message, 'error');
+        }
+    } catch(e) {
+        showAlert('alertError', 'Failed to update status.', 'error');
+    }
+    setLoading(btn, false);
+}
+
+init();
+</script>
 </body>
 </html>

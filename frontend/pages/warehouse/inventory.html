@@ -1,206 +1,246 @@
-<?php
-require_once '../db.php';
-require_once '../auth.php';
-require_role('warehouse');
-
-$success = '';
-$error   = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['action'] === 'add') {
-    $parcel_id     = intval($_POST['parcel_id']);
-    $shelf_location = trim($_POST['shelf_location']);
-
-    $check = mysqli_prepare($conn,
-        "SELECT inventory_id FROM inventory WHERE parcel_id=?");
-    mysqli_stmt_bind_param($check, "i", $parcel_id);
-    mysqli_stmt_execute($check);
-    $cr = mysqli_stmt_get_result($check);
-    mysqli_stmt_close($check);
-
-    if (mysqli_num_rows($cr) > 0) {
-        $error = "This parcel is already in inventory.";
-    } else {
-        $stmt = mysqli_prepare($conn,
-            "INSERT INTO inventory (parcel_id, shelf_location) VALUES (?,?)");
-        mysqli_stmt_bind_param($stmt, "is", $parcel_id, $shelf_location);
-        if (mysqli_stmt_execute($stmt)) {
-            $success = "Parcel added to shelf $shelf_location!";
-        } else {
-            $error = mysqli_stmt_error($stmt);
-        }
-        mysqli_stmt_close($stmt);
-    }
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['action'] === 'remove') {
-    $inv_id = intval($_POST['inventory_id']);
-    $stmt = mysqli_prepare($conn,
-        "DELETE FROM inventory WHERE inventory_id=?");
-    mysqli_stmt_bind_param($stmt, "i", $inv_id);
-    mysqli_stmt_execute($stmt);
-    mysqli_stmt_close($stmt);
-    $success = "Parcel removed from inventory.";
-}
-
-$search = isset($_GET['search']) ? trim($_GET['search']) : '';
-$where  = $search ? "AND (p.tracking_number LIKE '%$search%'
-                     OR p.recipient_name LIKE '%$search%'
-                     OR i.shelf_location LIKE '%$search%')" : '';
-
-$inventory = mysqli_query($conn,
-    "SELECT i.*, p.tracking_number, p.recipient_name,
-            p.recipient_address, p.weight, p.status,
-            c.name AS customer_name
-     FROM inventory i
-     JOIN parcels p ON i.parcel_id=p.parcel_id
-     JOIN customers c ON p.customer_id=c.customer_id
-     WHERE 1=1 $where ORDER BY i.shelf_location");
-
-$available = mysqli_query($conn,
-    "SELECT p.parcel_id, p.tracking_number, p.recipient_name, p.weight
-     FROM parcels p
-     WHERE p.parcel_id NOT IN (SELECT parcel_id FROM inventory)
-     AND p.status NOT IN ('Delivered','Failed')
-     ORDER BY p.date_registered DESC");
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Inventory — Wells Fargo CMS</title>
-    <link rel="stylesheet" href="../style.css"/>
+    <link rel="stylesheet" href="../../assets/css/style.css"/>
 </head>
 <body>
-<div class="sidebar">
-    <div class="logo">🚚 Wells Fargo CMS</div>
-    <div class="nav-section">WAREHOUSE</div>
-    <a href="dashboard.php">📊 Dashboard</a>
-    <a href="inventory.php" style="color:#fff;background:#334155;">🏭 Manage Inventory</a>
-    <div class="sidebar-footer">
-        👤 <?= htmlspecialchars($_SESSION['full_name']) ?><br/>
-        Role: Warehouse Staff<br/>
-        <a href="../logout.php" style="color:#ef4444;font-size:11px;">🚪 Logout</a>
-    </div>
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-icon">🚚</span>
+            <div class="sidebar-logo-text">
+                <span class="sidebar-logo-title">Wells Fargo CMS</span>
+                <span class="sidebar-logo-sub">Nairobi CBD Branch</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">Warehouse</div>
+            <a class="nav-link" href="dashboard.html">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <a class="nav-link active" href="inventory.html">
+                <span class="nav-icon">🏭</span> Manage Inventory
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar" id="userAvatar">WH</div>
+                <div>
+                    <div class="sidebar-user-name" id="userName">—</div>
+                    <div class="sidebar-user-role" id="userRole">—</div>
+                </div>
+            </div>
+            <a class="logout-btn" onclick="logout()">🚪 Logout</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header">
+            <h1>Warehouse Inventory</h1>
+            <p>Objective 1 — Manage parcel storage and shelf locations</p>
+        </div>
+
+        <div class="alert alert-success" id="alertSuccess"></div>
+        <div class="alert alert-error"   id="alertError"></div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-header"><h2>Add to Warehouse</h2></div>
+                <form id="addForm" onsubmit="handleAdd(event)">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Select Parcel <span class="required">*</span>
+                        </label>
+                        <select name="parcel_id" id="parcelSelect"
+                                class="form-control" required>
+                            <option value="">-- Select Parcel --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            Shelf Location <span class="required">*</span>
+                        </label>
+                        <input type="text" name="shelf_location"
+                               class="form-control"
+                               placeholder="e.g. A1, B3, C2" required/>
+                        <div class="form-hint">
+                            Use format: Row(A-Z) + Number(1-99)
+                        </div>
+                    </div>
+                    <div class="info-box">
+                        Assign a shelf location for quick parcel retrieval.
+                    </div>
+                    <button type="submit" id="addBtn"
+                            class="btn btn-primary btn-full">
+                        Add to Warehouse
+                    </button>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>Search Inventory</h2>
+                </div>
+                <div class="search-bar">
+                    <input type="text" class="search-input"
+                           id="searchInput"
+                           placeholder="Search by tracking, recipient or shelf..."
+                           oninput="searchInventory(this.value)"/>
+                    <button class="btn btn-primary btn-sm"
+                            onclick="searchInventory(
+                                document.getElementById('searchInput').value)">
+                        Search
+                    </button>
+                </div>
+                <div class="info-box" style="margin-top:12px;">
+                    Search finds parcels in under 2 minutes vs 10-15 minutes
+                    manually — per your proposal justification.
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 id="inventoryCount">Current Inventory</h2>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Shelf</th>
+                            <th>Tracking No.</th>
+                            <th>Sender</th>
+                            <th>Recipient</th>
+                            <th>Weight</th>
+                            <th>Status</th>
+                            <th>Received</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventoryTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
 </div>
-<div class="main">
-    <div class="page-header">
-        <h1>Warehouse Inventory</h1>
-        <p>Objective 1 — Manage parcel storage and shelf locations</p>
-    </div>
 
-    <?php if ($success): ?>
-        <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
-    <?php endif; ?>
-    <?php if ($error): ?>
-        <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
-    <?php endif; ?>
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/auth.js"></script>
+<script>
+async function init() {
+    const user = await checkAuth('warehouse');
+    if (!user) return;
+    populateSidebar(user);
+    await Promise.all([loadAvailable(), loadInventory()]);
+}
 
-    <div class="two-col">
-        <div class="card">
-            <h2>Add Parcel to Warehouse</h2>
-            <form method="POST">
-                <input type="hidden" name="action" value="add"/>
-                <div class="form-group">
-                    <label>Select Parcel <span class="required">*</span></label>
-                    <select name="parcel_id" required>
-                        <option value="">-- Select Parcel --</option>
-                        <?php while($p = mysqli_fetch_assoc($available)): ?>
-                        <option value="<?= $p['parcel_id'] ?>">
-                            <?= htmlspecialchars($p['tracking_number']) ?> —
-                            <?= htmlspecialchars($p['recipient_name']) ?>
-                            (<?= $p['weight'] ?>kg)
-                        </option>
-                        <?php endwhile; ?>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Shelf Location <span class="required">*</span></label>
-                    <input type="text" name="shelf_location"
-                           placeholder="e.g. A1, B3, C2" required/>
-                </div>
-                <div class="info-box">
-                    Assign a shelf for quick parcel retrieval.
-                </div>
-                <button type="submit" class="btn">Add to Warehouse</button>
-            </form>
-        </div>
+async function loadAvailable() {
+    try {
+        const res = await API.inventory.getAvailable();
+        const sel = document.getElementById('parcelSelect');
+        sel.innerHTML = '<option value="">-- Select Parcel --</option>';
+        (res.data || []).forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.parcel_id;
+            opt.textContent =
+                `${p.tracking_number} — ${p.recipient_name} (${p.weight}kg)`;
+            sel.appendChild(opt);
+        });
+    } catch(e) {}
+}
 
-        <div class="card">
-            <h2>Search Inventory</h2>
-            <form method="GET" style="display:flex;gap:10px;margin-bottom:16px;">
-                <input type="text" name="search"
-                       value="<?= htmlspecialchars($search) ?>"
-                       placeholder="Search tracking, recipient or shelf..."
-                       style="flex:1;padding:9px 12px;border:1px solid #d1d5db;
-                              border-radius:6px;font-size:13px;outline:none;"/>
-                <button type="submit" class="track-btn">Search</button>
-            </form>
-            <?php if ($search): ?>
-            <p style="font-size:12px;color:#64748b;">
-                Results for: <strong><?= htmlspecialchars($search) ?></strong>
-                <a href="inventory.php" style="color:#2563eb;margin-left:8px;">
-                    Clear</a>
-            </p>
-            <?php endif; ?>
-        </div>
-    </div>
+async function loadInventory(search = '') {
+    try {
+        const res = await API.inventory.getAll(search);
+        const items = res.data || [];
+        document.getElementById('inventoryCount').textContent =
+            `Current Inventory (${items.length} parcels)`;
 
-    <div class="card">
-        <h2>Current Inventory (<?= mysqli_num_rows($inventory) ?> parcels)</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Shelf</th><th>Tracking No.</th><th>Sender</th>
-                    <th>Recipient</th><th>Weight</th>
-                    <th>Status</th><th>Received</th><th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php
-            $count = 0;
-            while($item = mysqli_fetch_assoc($inventory)):
-                $count++;
-            ?>
+        const tbody = document.getElementById('inventoryTable');
+        if (!items.length) {
+            tbody.innerHTML = `<tr><td colspan="8">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🏭</div>
+                    <h3>${search ? 'No results found' : 'Warehouse is empty'}</h3>
+                </div></td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = items.map(i => `
             <tr>
-                <td><span style="background:#1e293b;color:#fff;padding:4px 10px;
-                                 border-radius:4px;font-weight:700;">
-                    <?= htmlspecialchars($item['shelf_location']) ?></span></td>
-                <td><span class="tracking">
-                    <?= htmlspecialchars($item['tracking_number']) ?></span></td>
-                <td><?= htmlspecialchars($item['customer_name']) ?></td>
-                <td><?= htmlspecialchars($item['recipient_name']) ?></td>
-                <td><?= $item['weight'] ?> kg</td>
-                <td><span class="badge badge-<?= strtolower(
-                    str_replace(' ','-',$item['status'])) ?>">
-                    <?= $item['status'] ?></span></td>
-                <td><?= date('d M Y',strtotime($item['received_date'])) ?></td>
                 <td>
-                    <form method="POST" style="margin:0;"
-                          onsubmit="return confirm('Remove from inventory?')">
-                        <input type="hidden" name="action" value="remove"/>
-                        <input type="hidden" name="inventory_id"
-                               value="<?= $item['inventory_id'] ?>"/>
-                        <button type="submit"
-                                style="background:#fee2e2;color:#991b1b;border:none;
-                                       padding:4px 10px;border-radius:4px;
-                                       cursor:pointer;font-size:12px;">
-                            Remove
-                        </button>
-                    </form>
+                    <span style="background:#1e293b;color:#fff;
+                                 padding:4px 10px;border-radius:4px;
+                                 font-weight:700;font-size:12px;">
+                        ${i.shelf_location}
+                    </span>
+                </td>
+                <td>${trackingBadge(i.tracking_number)}</td>
+                <td>${i.customer_name || '—'}</td>
+                <td>${i.recipient_name}</td>
+                <td>${i.weight} kg</td>
+                <td>${statusBadge(i.status)}</td>
+                <td>${formatDate(i.received_date)}</td>
+                <td>
+                    <button class="btn btn-sm"
+                            style="background:var(--color-background-danger);
+                                   color:var(--color-text-danger);"
+                            onclick="removeFromInventory(${i.inventory_id})">
+                        Remove
+                    </button>
                 </td>
             </tr>
-            <?php endwhile; ?>
-            <?php if ($count === 0): ?>
-            <tr>
-                <td colspan="8" style="text-align:center;
-                                       color:#94a3b8;padding:20px;">
-                    <?= $search ? 'No results found.' : 'No parcels in warehouse yet.' ?>
-                </td>
-            </tr>
-            <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
-</div>
+        `).join('');
+    } catch(e) {
+        showAlert('alertError', 'Failed to load inventory.', 'error');
+    }
+}
+
+function searchInventory(q) {
+    loadInventory(q);
+}
+
+async function handleAdd(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn  = document.getElementById('addBtn');
+    setLoading(btn, true);
+
+    try {
+        const res = await API.inventory.add(
+            parseInt(form.parcel_id.value),
+            form.shelf_location.value.trim().toUpperCase()
+        );
+        if (res.status === 'success') {
+            showAlert('alertSuccess',
+                `Parcel added to shelf ${form.shelf_location.value.toUpperCase()}!`,
+                'success');
+            form.reset();
+            await Promise.all([loadAvailable(), loadInventory()]);
+        } else {
+            showAlert('alertError', res.message, 'error');
+        }
+    } catch(e) {
+        showAlert('alertError', 'Failed to add to inventory.', 'error');
+    }
+    setLoading(btn, false);
+}
+
+async function removeFromInventory(id) {
+    if (!confirm('Remove this parcel from inventory?')) return;
+    try {
+        await API.inventory.remove(id);
+        showAlert('alertSuccess', 'Parcel removed from inventory.', 'success');
+        await Promise.all([loadAvailable(), loadInventory()]);
+    } catch(e) {
+        showAlert('alertError', 'Failed to remove.', 'error');
+    }
+}
+
+init();
+</script>
 </body>
 </html>

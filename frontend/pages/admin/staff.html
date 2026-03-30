@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Manage Staff — Wells Fargo CMS</title>
+    <link rel="stylesheet" href="../../assets/css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-icon">🚚</span>
+            <div class="sidebar-logo-text">
+                <span class="sidebar-logo-title">Wells Fargo CMS</span>
+                <span class="sidebar-logo-sub">Nairobi CBD Branch</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">Admin Panel</div>
+            <a class="nav-link" href="dashboard.html">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <a class="nav-link active" href="staff.html">
+                <span class="nav-icon">👥</span> Manage Staff
+            </a>
+            <a class="nav-link" href="vehicles.html">
+                <span class="nav-icon">🚗</span> Manage Vehicles
+            </a>
+            <a class="nav-link" href="reports.html">
+                <span class="nav-icon">📈</span> Reports
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar" id="userAvatar">BM</div>
+                <div>
+                    <div class="sidebar-user-name" id="userName">—</div>
+                    <div class="sidebar-user-role" id="userRole">—</div>
+                </div>
+            </div>
+            <a class="logout-btn" onclick="logout()">🚪 Logout</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header">
+            <h1>Manage Staff</h1>
+            <p>Add drivers, dispatch officers, warehouse staff and
+               customer service representatives</p>
+        </div>
+
+        <div class="alert alert-success" id="alertSuccess"></div>
+        <div class="alert alert-error"   id="alertError"></div>
+
+        <!-- STAFF COUNTS -->
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);
+                                       margin-bottom:24px;" id="roleCounts">
+            <div class="stat-card">
+                <div class="stat-icon-wrap blue">🚗</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="cntDriver">—</div>
+                    <div class="stat-label">Drivers</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap amber">📋</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="cntDispatch">—</div>
+                    <div class="stat-label">Dispatch Officers</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap teal">🏭</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="cntWarehouse">—</div>
+                    <div class="stat-label">Warehouse Staff</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap purple">🎧</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="cntCS">—</div>
+                    <div class="stat-label">Customer Service</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <!-- ADD FORM -->
+            <div class="card">
+                <div class="card-header"><h2>Add New Staff Member</h2></div>
+
+                <form id="addStaffForm" onsubmit="handleAddStaff(event)">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Full Name <span class="required">*</span>
+                        </label>
+                        <input type="text" name="full_name"
+                               class="form-control"
+                               placeholder="e.g. James Mwangi" required/>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Role <span class="required">*</span>
+                        </label>
+                        <select name="role" class="form-control" required>
+                            <option value="">-- Select Role --</option>
+                            <option value="driver">Driver</option>
+                            <option value="dispatch">Dispatch Officer</option>
+                            <option value="warehouse">Warehouse Staff</option>
+                            <option value="customer_service">
+                                Customer Service Rep
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">
+                                Username <span class="required">*</span>
+                            </label>
+                            <input type="text" name="username"
+                                   class="form-control"
+                                   placeholder="e.g. james01" required/>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">
+                                Phone <span class="required">*</span>
+                            </label>
+                            <input type="text" name="phone"
+                                   class="form-control"
+                                   placeholder="0712345678" required/>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Email <span class="required">*</span>
+                        </label>
+                        <input type="email" name="email"
+                               class="form-control"
+                               placeholder="james@wellsfargo.co.ke" required/>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Password <span class="required">*</span>
+                        </label>
+                        <input type="password" name="password"
+                               class="form-control"
+                               placeholder="Set login password" required/>
+                    </div>
+
+                    <div class="info-box">
+                        Staff will use their username and this password to login.
+                    </div>
+
+                    <button type="submit" id="addBtn"
+                            class="btn btn-primary btn-full">
+                        Add Staff Member
+                    </button>
+                </form>
+            </div>
+
+            <!-- STAFF LIST -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>All Staff</h2>
+                    <div class="search-bar" style="margin:0;width:200px;">
+                        <input type="text" class="search-input"
+                               placeholder="Filter by role..."
+                               id="roleFilter"
+                               onchange="filterStaff(this.value)"/>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Role</th>
+                                <th>Username</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="staffTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/auth.js"></script>
+<script>
+let allStaff = [];
+
+async function init() {
+    const user = await checkAuth('admin');
+    if (!user) return;
+    populateSidebar(user);
+    await loadStaff();
+}
+
+async function loadStaff() {
+    try {
+        const res = await API.users.getAll();
+        allStaff = res.data || [];
+        renderStaff(allStaff);
+        updateCounts(allStaff);
+    } catch(e) {
+        showAlert('alertError', 'Failed to load staff.', 'error');
+    }
+}
+
+function updateCounts(staff) {
+    const count = role => staff.filter(
+        s => s.role === role && s.status === 'active').length;
+    document.getElementById('cntDriver').textContent   = count('driver');
+    document.getElementById('cntDispatch').textContent = count('dispatch');
+    document.getElementById('cntWarehouse').textContent= count('warehouse');
+    document.getElementById('cntCS').textContent       = count('customer_service');
+}
+
+function filterStaff(role) {
+    const filtered = role
+        ? allStaff.filter(s => s.role.includes(role.toLowerCase()))
+        : allStaff;
+    renderStaff(filtered);
+}
+
+function renderStaff(staff) {
+    const tbody = document.getElementById('staffTable');
+    if (!staff.length) {
+        tbody.innerHTML = `<tr><td colspan="5">
+            <div class="empty-state">
+                <div class="empty-state-icon">👥</div>
+                <h3>No staff added yet</h3>
+            </div></td></tr>`;
+        return;
+    }
+    tbody.innerHTML = staff.map(s => `
+        <tr>
+            <td><strong>${s.full_name}</strong>
+                <div style="font-size:11px;
+                     color:var(--color-text-secondary);">
+                    ${s.phone || ''}</div>
+            </td>
+            <td>${roleBadge(s.role)}</td>
+            <td style="font-family:var(--font-mono);font-size:12px;">
+                ${s.username}</td>
+            <td><span class="badge badge-${s.status}">${s.status}</span></td>
+            <td>
+                ${s.status === 'active'
+                    ? `<button class="btn btn-sm"
+                        style="background:var(--color-background-danger);
+                               color:var(--color-text-danger);"
+                        onclick="toggleStatus(${s.user_id},'inactive')">
+                        Deactivate</button>`
+                    : `<button class="btn btn-sm"
+                        style="background:var(--color-background-success);
+                               color:var(--color-text-success);"
+                        onclick="toggleStatus(${s.user_id},'active')">
+                        Activate</button>`
+                }
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function handleAddStaff(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn  = document.getElementById('addBtn');
+    setLoading(btn, true);
+
+    const data = {
+        full_name: form.full_name.value.trim(),
+        username:  form.username.value.trim(),
+        email:     form.email.value.trim(),
+        phone:     form.phone.value.trim(),
+        password:  form.password.value,
+        role:      form.role.value
+    };
+
+    try {
+        const res = await API.users.create(data);
+        if (res.status === 'success') {
+            showAlert('alertSuccess',
+                `Staff member '${data.full_name}' added successfully!`,
+                'success');
+            form.reset();
+            await loadStaff();
+        } else {
+            showAlert('alertError', res.message, 'error');
+        }
+    } catch(e) {
+        showAlert('alertError', 'Failed to add staff. Username may already exist.', 'error');
+    }
+    setLoading(btn, false);
+}
+
+async function toggleStatus(userId, status) {
+    try {
+        await API.users.updateStatus(userId, status);
+        showAlert('alertSuccess',
+            `Staff member ${status === 'active' ? 'activated' : 'deactivated'}.`,
+            'success');
+        await loadStaff();
+    } catch(e) {
+        showAlert('alertError', 'Failed to update status.', 'error');
+    }
+}
+
+init();
+</script>
+</body>
+</html>

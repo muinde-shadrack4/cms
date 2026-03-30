@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Dispatch Dashboard — Wells Fargo CMS</title>
+    <link rel="stylesheet" href="../../assets/css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-icon">🚚</span>
+            <div class="sidebar-logo-text">
+                <span class="sidebar-logo-title">Wells Fargo CMS</span>
+                <span class="sidebar-logo-sub">Nairobi CBD Branch</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">Dispatch</div>
+            <a class="nav-link active" href="dashboard.html">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <a class="nav-link" href="assign.html">
+                <span class="nav-icon">🚛</span> Assign Parcels
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar" id="userAvatar">DO</div>
+                <div>
+                    <div class="sidebar-user-name" id="userName">—</div>
+                    <div class="sidebar-user-role" id="userRole">—</div>
+                </div>
+            </div>
+            <a class="logout-btn" onclick="logout()">🚪 Logout</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header page-header-row">
+            <div>
+                <h1>Dispatch Dashboard</h1>
+                <p id="welcomeMsg">Welcome back</p>
+            </div>
+            <button class="btn btn-primary"
+                    onclick="location.href='assign.html'">
+                + Assign Parcels
+            </button>
+        </div>
+
+        <div class="alert alert-error" id="alertError"></div>
+
+        <div class="stats-grid"
+             style="grid-template-columns:repeat(3,1fr);">
+            <div class="stat-card">
+                <div class="stat-icon-wrap amber">⏳</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statPending">—</div>
+                    <div class="stat-label">Pending Assignment</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap teal">🚛</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statOut">—</div>
+                    <div class="stat-label">Out for Delivery</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap blue">🧑‍💼</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statDrivers">—</div>
+                    <div class="stat-label">Active Drivers</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>Parcels Awaiting Assignment</h2>
+                <button class="btn btn-primary btn-sm"
+                        onclick="location.href='assign.html'">
+                    Assign Now →
+                </button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tracking No.</th>
+                            <th>Sender</th>
+                            <th>Recipient</th>
+                            <th>Zone</th>
+                            <th>Weight</th>
+                            <th>Booked</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pendingTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/auth.js"></script>
+<script>
+async function init() {
+    const user = await checkAuth('dispatch');
+    if (!user) return;
+    populateSidebar(user);
+    document.getElementById('welcomeMsg').textContent =
+        `Welcome, ${user.full_name}`;
+    await loadData();
+}
+
+async function loadData() {
+    try {
+        const [pending, drivers] = await Promise.all([
+            API.dispatch.getPending(),
+            API.users.getDrivers()
+        ]);
+
+        const parcels = pending.data || [];
+        document.getElementById('statPending').textContent  = parcels.length;
+        document.getElementById('statDrivers').textContent  =
+            drivers.data?.length ?? 0;
+        document.getElementById('statOut').textContent = '—';
+
+        const tbody = document.getElementById('pendingTable');
+        if (!parcels.length) {
+            tbody.innerHTML = `<tr><td colspan="6">
+                <div class="empty-state">
+                    <div class="empty-state-icon">✅</div>
+                    <h3>All parcels assigned!</h3>
+                    <p>No parcels awaiting assignment</p>
+                </div></td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = parcels.map(p => `
+            <tr>
+                <td>${trackingBadge(p.tracking_number)}</td>
+                <td>${p.customer_name || '—'}</td>
+                <td>${p.recipient_name}</td>
+                <td>${p.zone}</td>
+                <td>${p.weight} kg</td>
+                <td>${formatDate(p.date_registered)}</td>
+            </tr>
+        `).join('');
+    } catch(e) {
+        showAlert('alertError', 'Failed to load data.', 'error');
+    }
+}
+
+init();
+</script>
+</body>
+</html>

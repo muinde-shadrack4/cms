@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Customer Service — Wells Fargo CMS</title>
+    <link rel="stylesheet" href="../../assets/css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-icon">🚚</span>
+            <div class="sidebar-logo-text">
+                <span class="sidebar-logo-title">Wells Fargo CMS</span>
+                <span class="sidebar-logo-sub">Nairobi CBD Branch</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">Customer Service</div>
+            <a class="nav-link active" href="dashboard.html">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <a class="nav-link" href="register_customer.html">
+                <span class="nav-icon">👤</span> Register Customer
+            </a>
+            <a class="nav-link" href="register_parcel.html">
+                <span class="nav-icon">📦</span> Book Parcel
+            </a>
+            <a class="nav-link" href="../customer_service/track.html">
+                <span class="nav-icon">🔍</span> Track Parcel
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar" id="userAvatar">CS</div>
+                <div>
+                    <div class="sidebar-user-name" id="userName">—</div>
+                    <div class="sidebar-user-role" id="userRole">—</div>
+                </div>
+            </div>
+            <a class="logout-btn" onclick="logout()">🚪 Logout</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header">
+            <h1>Customer Service Dashboard</h1>
+            <p id="welcomeMsg">Welcome back</p>
+        </div>
+
+        <div class="alert alert-error" id="alertError"></div>
+
+        <div class="stats-grid"
+             style="grid-template-columns:repeat(3,1fr);">
+            <div class="stat-card">
+                <div class="stat-icon-wrap blue">📦</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statTotal">—</div>
+                    <div class="stat-label">Total Parcels</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap green">👥</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statCustomers">—</div>
+                    <div class="stat-label">Total Customers</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap amber">📅</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statToday">—</div>
+                    <div class="stat-label">Booked Today</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="quick-links">
+            <div class="quick-card"
+                 onclick="location.href='register_customer.html'">
+                <div class="quick-card-icon">👤</div>
+                <div class="quick-card-title">Register Customer</div>
+                <div class="quick-card-sub">Add new customer</div>
+            </div>
+            <div class="quick-card"
+                 onclick="location.href='register_parcel.html'">
+                <div class="quick-card-icon">📦</div>
+                <div class="quick-card-title">Book Parcel</div>
+                <div class="quick-card-sub">New shipment</div>
+            </div>
+            <div class="quick-card"
+                 onclick="location.href='track.html'">
+                <div class="quick-card-icon">🔍</div>
+                <div class="quick-card-title">Track Parcel</div>
+                <div class="quick-card-sub">Check status</div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+            <div class="card-header">
+                <h2>Recent Parcels</h2>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tracking No.</th>
+                            <th>Sender</th>
+                            <th>Recipient</th>
+                            <th>Price</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="parcelsTable">
+                        <tr><td colspan="6">
+                            <div class="empty-state">
+                                <p>Loading...</p>
+                            </div>
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/auth.js"></script>
+<script>
+async function init() {
+    const user = await checkAuth('customer_service');
+    if (!user) return;
+    populateSidebar(user);
+    document.getElementById('welcomeMsg').textContent =
+        `Welcome back, ${user.full_name}`;
+    await loadData();
+}
+
+async function loadData() {
+    try {
+        const [parcels, customers] = await Promise.all([
+            API.parcels.getAll({ limit: 10 }),
+            API.customers.getAll()
+        ]);
+
+        const today = new Date().toDateString();
+        const todayCount = (parcels.data || []).filter(p =>
+            new Date(p.date_registered).toDateString() === today).length;
+
+        document.getElementById('statTotal').textContent =
+            parcels.data?.length ?? 0;
+        document.getElementById('statCustomers').textContent =
+            customers.data?.length ?? 0;
+        document.getElementById('statToday').textContent = todayCount;
+
+        const tbody = document.getElementById('parcelsTable');
+        if (!parcels.data?.length) {
+            tbody.innerHTML = `<tr><td colspan="6">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📦</div>
+                    <h3>No parcels yet</h3>
+                    <p><a href="register_parcel.html">Book the first one</a></p>
+                </div></td></tr>`;
+            return;
+        }
+        tbody.innerHTML = parcels.data.map(p => `
+            <tr>
+                <td>${trackingBadge(p.tracking_number)}</td>
+                <td>${p.customer_name || '—'}</td>
+                <td>${p.recipient_name}</td>
+                <td>${formatKES(p.price)}</td>
+                <td>${statusBadge(p.status)}</td>
+                <td>${formatDate(p.date_registered)}</td>
+            </tr>
+        `).join('');
+    } catch(e) {
+        showAlert('alertError', 'Failed to load data.', 'error');
+    }
+}
+
+init();
+</script>
+</body>
+</html>

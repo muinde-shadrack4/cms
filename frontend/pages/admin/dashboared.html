@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Admin Dashboard — Wells Fargo CMS</title>
+    <link rel="stylesheet" href="../../assets/css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-icon">🚚</span>
+            <div class="sidebar-logo-text">
+                <span class="sidebar-logo-title">Wells Fargo CMS</span>
+                <span class="sidebar-logo-sub">Nairobi CBD Branch</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">Admin Panel</div>
+            <a class="nav-link active" href="dashboard.html">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <a class="nav-link" href="staff.html">
+                <span class="nav-icon">👥</span> Manage Staff
+            </a>
+            <a class="nav-link" href="vehicles.html">
+                <span class="nav-icon">🚗</span> Manage Vehicles
+            </a>
+            <a class="nav-link" href="reports.html">
+                <span class="nav-icon">📈</span> Reports
+            </a>
+            <div class="nav-section">Quick Links</div>
+            <a class="nav-link" href="../customer_service/register_parcel.html">
+                <span class="nav-icon">📦</span> Book Parcel
+            </a>
+            <a class="nav-link" href="../dispatch/assign.html">
+                <span class="nav-icon">🚛</span> Dispatch
+            </a>
+            <a class="nav-link" href="../warehouse/inventory.html">
+                <span class="nav-icon">🏭</span> Inventory
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar" id="userAvatar">BM</div>
+                <div>
+                    <div class="sidebar-user-name" id="userName">Branch Manager</div>
+                    <div class="sidebar-user-role" id="userRole">Admin</div>
+                </div>
+            </div>
+            <a class="logout-btn" onclick="logout()">
+                🚪 Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main-content">
+
+        <div class="page-header page-header-row">
+            <div>
+                <h1>Dashboard</h1>
+                <p>Welcome back — here's what's happening today</p>
+            </div>
+            <button class="btn btn-primary" onclick="loadData()">
+                🔄 Refresh
+            </button>
+        </div>
+
+        <!-- ALERTS -->
+        <div class="alert alert-error" id="alertError"></div>
+
+        <!-- STATS -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-icon-wrap blue">📦</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statParcels">—</div>
+                    <div class="stat-label">Total Parcels</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap green">👥</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statCustomers">—</div>
+                    <div class="stat-label">Customers</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap purple">🧑‍💼</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statStaff">—</div>
+                    <div class="stat-label">Staff Members</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap amber">🏭</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statWarehouse">—</div>
+                    <div class="stat-label">In Warehouse</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap teal">🚛</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statTransit">—</div>
+                    <div class="stat-label">In Transit</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap green">✅</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statDelivered">—</div>
+                    <div class="stat-label">Delivered</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- QUICK LINKS -->
+        <div class="quick-links" style="margin-bottom:20px;">
+            <div class="quick-card" onclick="location.href='staff.html'">
+                <div class="quick-card-icon">👥</div>
+                <div class="quick-card-title">Manage Staff</div>
+                <div class="quick-card-sub">Add drivers & staff</div>
+            </div>
+            <div class="quick-card" onclick="location.href='vehicles.html'">
+                <div class="quick-card-icon">🚗</div>
+                <div class="quick-card-title">Fleet</div>
+                <div class="quick-card-sub">Manage vehicles</div>
+            </div>
+            <div class="quick-card" onclick="location.href='reports.html'">
+                <div class="quick-card-icon">📈</div>
+                <div class="quick-card-title">Reports</div>
+                <div class="quick-card-sub">Objective 4</div>
+            </div>
+            <div class="quick-card"
+                 onclick="location.href='../customer_service/register_parcel.html'">
+                <div class="quick-card-icon">📦</div>
+                <div class="quick-card-title">Book Parcel</div>
+                <div class="quick-card-sub">Objective 2</div>
+            </div>
+        </div>
+
+        <!-- STAFF TABLE -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Staff Members</h2>
+                <button class="btn btn-primary btn-sm"
+                        onclick="location.href='staff.html'">
+                    + Add Staff
+                </button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>Username</th>
+                            <th>Phone</th>
+                            <th>Status</th>
+                            <th>Added</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staffTable">
+                        <tr>
+                            <td colspan="6">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">👥</div>
+                                    <p>Loading staff...</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- RECENT PARCELS -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Recent Parcels</h2>
+                <button class="btn btn-outline btn-sm"
+                        onclick="location.href='reports.html'">
+                    View Reports →
+                </button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tracking No.</th>
+                            <th>Sender</th>
+                            <th>Recipient</th>
+                            <th>Price (KES)</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="parcelsTable">
+                        <tr>
+                            <td colspan="6">
+                                <div class="empty-state">
+                                    <p>Loading parcels...</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/auth.js"></script>
+<script>
+let currentUser = null;
+
+// ── INIT ──────────────────────────────────────────────────
+async function init() {
+    currentUser = await checkAuth('admin');
+    if (!currentUser) return;
+    populateSidebar(currentUser);
+    await loadData();
+}
+
+// ── LOAD ALL DATA ─────────────────────────────────────────
+async function loadData() {
+    await Promise.all([
+        loadStats(),
+        loadStaff(),
+        loadParcels()
+    ]);
+}
+
+// ── STATS ─────────────────────────────────────────────────
+async function loadStats() {
+    try {
+        const res = await API.reports.getSummary(
+            new Date(new Date().getFullYear(),0,1)
+                .toISOString().split('T')[0],
+            new Date().toISOString().split('T')[0]
+        );
+        const d = res.data;
+        document.getElementById('statParcels').textContent =
+            d.total_parcels ?? '0';
+        document.getElementById('statCustomers').textContent =
+            d.total_customers ?? '0';
+        document.getElementById('statStaff').textContent =
+            d.total_staff ?? '0';
+        document.getElementById('statWarehouse').textContent =
+            d.in_warehouse ?? '0';
+        document.getElementById('statTransit').textContent =
+            d.in_transit ?? '0';
+        document.getElementById('statDelivered').textContent =
+            d.delivered ?? '0';
+    } catch(e) {
+        showAlert('alertError', 'Failed to load stats.', 'error');
+    }
+}
+
+// ── STAFF ─────────────────────────────────────────────────
+async function loadStaff() {
+    try {
+        const res = await API.users.getAll();
+        const tbody = document.getElementById('staffTable');
+
+        if (!res.data || res.data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6">
+                <div class="empty-state">
+                    <div class="empty-state-icon">👥</div>
+                    <h3>No staff yet</h3>
+                    <p>Add staff from <a href="staff.html">Manage Staff</a></p>
+                </div></td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = res.data.map(s => `
+            <tr>
+                <td><strong>${s.full_name}</strong></td>
+                <td>${roleBadge(s.role)}</td>
+                <td style="font-family:var(--font-mono);font-size:12px;">
+                    ${s.username}</td>
+                <td>${s.phone || '—'}</td>
+                <td><span class="badge badge-${s.status}">
+                    ${s.status}</span></td>
+                <td>${formatDate(s.created_at)}</td>
+            </tr>
+        `).join('');
+    } catch(e) {
+        document.getElementById('staffTable').innerHTML =
+            `<tr><td colspan="6" style="text-align:center;
+             color:var(--color-text-secondary)">
+             Failed to load staff</td></tr>`;
+    }
+}
+
+// ── PARCELS ───────────────────────────────────────────────
+async function loadParcels() {
+    try {
+        const res = await API.parcels.getAll({ limit: 5 });
+        const tbody = document.getElementById('parcelsTable');
+
+        if (!res.data || res.data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📦</div>
+                    <h3>No parcels yet</h3>
+                </div></td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = res.data.map(p => `
+            <tr>
+                <td>${trackingBadge(p.tracking_number)}</td>
+                <td>${p.customer_name || '—'}</td>
+                <td>${p.recipient_name}</td>
+                <td>${formatKES(p.price)}</td>
+                <td>${statusBadge(p.status)}</td>
+                <td>${formatDate(p.date_registered)}</td>
+            </tr>
+        `).join('');
+    } catch(e) {
+        document.getElementById('parcelsTable').innerHTML =
+            `<tr><td colspan="6" style="text-align:center;
+             color:var(--color-text-secondary)">
+             Failed to load parcels</td></tr>`;
+    }
+}
+
+init();
+</script>
+</body>
+</html>

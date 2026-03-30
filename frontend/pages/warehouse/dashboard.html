@@ -1,100 +1,154 @@
-<?php
-require_once '../db.php';
-require_once '../auth.php';
-require_role('warehouse');
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Warehouse Dashboard — Wells Fargo CMS</title>
-    <link rel="stylesheet" href="../style.css"/>
+    <link rel="stylesheet" href="../../assets/css/style.css"/>
 </head>
 <body>
-<div class="sidebar">
-    <div class="logo">🚚 Wells Fargo CMS</div>
-    <div class="nav-section">WAREHOUSE</div>
-    <a href="dashboard.php" style="color:#fff;background:#334155;">📊 Dashboard</a>
-    <a href="inventory.php">🏭 Manage Inventory</a>
-    <div class="sidebar-footer">
-        👤 <?= htmlspecialchars($_SESSION['full_name']) ?><br/>
-        Role: Warehouse Staff<br/>
-        <a href="../logout.php" style="color:#ef4444;font-size:11px;">🚪 Logout</a>
-    </div>
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-icon">🚚</span>
+            <div class="sidebar-logo-text">
+                <span class="sidebar-logo-title">Wells Fargo CMS</span>
+                <span class="sidebar-logo-sub">Nairobi CBD Branch</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">Warehouse</div>
+            <a class="nav-link active" href="dashboard.html">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <a class="nav-link" href="inventory.html">
+                <span class="nav-icon">🏭</span> Manage Inventory
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar" id="userAvatar">WH</div>
+                <div>
+                    <div class="sidebar-user-name" id="userName">—</div>
+                    <div class="sidebar-user-role" id="userRole">—</div>
+                </div>
+            </div>
+            <a class="logout-btn" onclick="logout()">🚪 Logout</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header page-header-row">
+            <div>
+                <h1>Warehouse Dashboard</h1>
+                <p id="welcomeMsg">Welcome back</p>
+            </div>
+            <button class="btn btn-primary"
+                    onclick="location.href='inventory.html'">
+                Manage Inventory →
+            </button>
+        </div>
+
+        <div class="alert alert-error" id="alertError"></div>
+
+        <div class="stats-grid"
+             style="grid-template-columns:repeat(2,1fr);max-width:400px;">
+            <div class="stat-card">
+                <div class="stat-icon-wrap blue">📦</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statIn">—</div>
+                    <div class="stat-label">Parcels in Warehouse</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap purple">🗄️</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statShelves">—</div>
+                    <div class="stat-label">Shelf Locations</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>Current Inventory</h2>
+                <button class="btn btn-outline btn-sm"
+                        onclick="location.href='inventory.html'">
+                    Manage →
+                </button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Shelf</th>
+                            <th>Tracking No.</th>
+                            <th>Recipient</th>
+                            <th>Status</th>
+                            <th>Received</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventoryTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
 </div>
-<div class="main">
-    <div class="page-header">
-        <h1>Warehouse Dashboard</h1>
-        <p>Welcome, <?= htmlspecialchars($_SESSION['full_name']) ?></p>
-    </div>
-    <?php
-    $in_warehouse = mysqli_fetch_assoc(mysqli_query($conn,
-        "SELECT COUNT(*) AS t FROM inventory"))['t'];
-    $shelves = mysqli_fetch_assoc(mysqli_query($conn,
-        "SELECT COUNT(DISTINCT shelf_location) AS t FROM inventory"))['t'];
-    ?>
-    <div class="stats" style="grid-template-columns:repeat(2,1fr);max-width:400px;">
-        <div class="stat-card">
-            <div class="stat-icon">📦</div>
-            <div class="stat-num"><?= $in_warehouse ?></div>
-            <div class="stat-label">Parcels in Warehouse</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">🗄️</div>
-            <div class="stat-num"><?= $shelves ?></div>
-            <div class="stat-label">Shelf Locations</div>
-        </div>
-    </div>
-    <div class="card">
-        <div style="display:flex;justify-content:space-between;
-                    align-items:center;margin-bottom:16px;">
-            <h2>Current Inventory</h2>
-            <a href="inventory.php" class="track-btn">Manage →</a>
-        </div>
-        <?php
-        $items = mysqli_query($conn,
-            "SELECT i.shelf_location, p.tracking_number,
-                    p.recipient_name, p.status, i.received_date
-             FROM inventory i
-             JOIN parcels p ON i.parcel_id=p.parcel_id
-             ORDER BY i.shelf_location");
-        ?>
-        <table>
-            <thead>
-                <tr>
-                    <th>Shelf</th><th>Tracking No.</th>
-                    <th>Recipient</th><th>Status</th><th>Received</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php
-            $count = 0;
-            while($item = mysqli_fetch_assoc($items)):
-                $count++;
-            ?>
+
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/auth.js"></script>
+<script>
+async function init() {
+    const user = await checkAuth('warehouse');
+    if (!user) return;
+    populateSidebar(user);
+    document.getElementById('welcomeMsg').textContent =
+        `Welcome, ${user.full_name}`;
+    await loadInventory();
+}
+
+async function loadInventory() {
+    try {
+        const res = await API.inventory.getAll();
+        const items = res.data || [];
+
+        const shelves = new Set(items.map(i => i.shelf_location)).size;
+        document.getElementById('statIn').textContent      = items.length;
+        document.getElementById('statShelves').textContent = shelves;
+
+        const tbody = document.getElementById('inventoryTable');
+        if (!items.length) {
+            tbody.innerHTML = `<tr><td colspan="5">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🏭</div>
+                    <h3>Warehouse is empty</h3>
+                    <p><a href="inventory.html">Add parcels to inventory</a></p>
+                </div></td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = items.map(i => `
             <tr>
-                <td><span style="background:#1e293b;color:#fff;padding:3px 8px;
-                                 border-radius:4px;font-weight:700;">
-                    <?= htmlspecialchars($item['shelf_location']) ?></span></td>
-                <td><span class="tracking">
-                    <?= htmlspecialchars($item['tracking_number']) ?></span></td>
-                <td><?= htmlspecialchars($item['recipient_name']) ?></td>
-                <td><span class="badge badge-<?= strtolower(
-                    str_replace(' ','-',$item['status'])) ?>">
-                    <?= $item['status'] ?></span></td>
-                <td><?= date('d M Y',strtotime($item['received_date'])) ?></td>
-            </tr>
-            <?php endwhile; ?>
-            <?php if ($count === 0): ?>
-            <tr>
-                <td colspan="5" style="text-align:center;color:#94a3b8;padding:20px;">
-                    No parcels in warehouse yet.
+                <td>
+                    <span style="background:var(--primary,#1e293b);
+                                 color:#fff;padding:3px 8px;
+                                 border-radius:4px;font-weight:500;
+                                 font-size:12px;">
+                        ${i.shelf_location}
+                    </span>
                 </td>
+                <td>${trackingBadge(i.tracking_number)}</td>
+                <td>${i.recipient_name}</td>
+                <td>${statusBadge(i.status)}</td>
+                <td>${formatDate(i.received_date)}</td>
             </tr>
-            <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
-</div>
+        `).join('');
+    } catch(e) {
+        showAlert('alertError', 'Failed to load inventory.', 'error');
+    }
+}
+
+init();
+</script>
 </body>
 </html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>My Account — Wells Fargo CMS</title>
+    <link rel="stylesheet" href="../../assets/css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-icon">🚚</span>
+            <div class="sidebar-logo-text">
+                <span class="sidebar-logo-title">Wells Fargo CMS</span>
+                <span class="sidebar-logo-sub">Nairobi CBD Branch</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">My Account</div>
+            <a class="nav-link active" href="dashboard.html">
+                <span class="nav-icon">📦</span> My Parcels
+            </a>
+            <a class="nav-link" href="track.html">
+                <span class="nav-icon">🔍</span> Track Parcel
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar" id="userAvatar">CU</div>
+                <div>
+                    <div class="sidebar-user-name" id="userName">—</div>
+                    <div class="sidebar-user-role" id="userRole">Customer</div>
+                </div>
+            </div>
+            <a class="logout-btn" onclick="logout()">🚪 Logout</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header page-header-row">
+            <div>
+                <h1>My Parcels</h1>
+                <p id="welcomeMsg">Welcome back</p>
+            </div>
+            <button class="btn btn-primary"
+                    onclick="location.href='track.html'">
+                🔍 Track Parcel
+            </button>
+        </div>
+
+        <div class="alert alert-error" id="alertError"></div>
+
+        <div class="stats-grid"
+             style="grid-template-columns:repeat(2,1fr);max-width:400px;">
+            <div class="stat-card">
+                <div class="stat-icon-wrap blue">📦</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statTotal">—</div>
+                    <div class="stat-label">Total Parcels</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap green">✅</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statDelivered">—</div>
+                    <div class="stat-label">Delivered</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>My Shipments</h2>
+                <button class="btn btn-outline btn-sm"
+                        onclick="location.href='track.html'">
+                    Track a Parcel →
+                </button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tracking No.</th>
+                            <th>Recipient</th>
+                            <th>Zone</th>
+                            <th>Price</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="parcelsTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/auth.js"></script>
+<script>
+let currentUser = null;
+
+async function init() {
+    currentUser = await checkAuth('customer');
+    if (!currentUser) return;
+    populateSidebar(currentUser);
+    document.getElementById('welcomeMsg').textContent =
+        `Welcome back, ${currentUser.full_name}`;
+    await loadParcels();
+}
+
+async function loadParcels() {
+    try {
+        const customerId = currentUser.customer_id ||
+            currentUser.user_id.toString().replace('C','');
+        const res = await API.parcels.getByCustomer(customerId);
+        const parcels = res.data || [];
+
+        const delivered = parcels.filter(p =>
+            p.status === 'Delivered').length;
+        document.getElementById('statTotal').textContent     = parcels.length;
+        document.getElementById('statDelivered').textContent = delivered;
+
+        const tbody = document.getElementById('parcelsTable');
+        if (!parcels.length) {
+            tbody.innerHTML = `<tr><td colspan="6">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📦</div>
+                    <h3>No parcels yet</h3>
+                    <p>Visit our branch to send a parcel</p>
+                </div></td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = parcels.map(p => `
+            <tr>
+                <td>${trackingBadge(p.tracking_number)}</td>
+                <td>${p.recipient_name}</td>
+                <td>${p.zone}</td>
+                <td>${formatKES(p.price)}</td>
+                <td>${statusBadge(p.status)}</td>
+                <td>${formatDate(p.date_registered)}</td>
+            </tr>
+        `).join('');
+    } catch(e) {
+        showAlert('alertError', 'Failed to load parcels.', 'error');
+    }
+}
+
+init();
+</script>
+</body>
+</html>

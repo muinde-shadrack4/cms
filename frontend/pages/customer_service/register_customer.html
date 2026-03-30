@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Register Customer — Wells Fargo CMS</title>
+    <link rel="stylesheet" href="../../assets/css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-icon">🚚</span>
+            <div class="sidebar-logo-text">
+                <span class="sidebar-logo-title">Wells Fargo CMS</span>
+                <span class="sidebar-logo-sub">Nairobi CBD Branch</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">Customer Service</div>
+            <a class="nav-link" href="dashboard.html">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <a class="nav-link active" href="register_customer.html">
+                <span class="nav-icon">👤</span> Register Customer
+            </a>
+            <a class="nav-link" href="register_parcel.html">
+                <span class="nav-icon">📦</span> Book Parcel
+            </a>
+            <a class="nav-link" href="track.html">
+                <span class="nav-icon">🔍</span> Track Parcel
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar" id="userAvatar">CS</div>
+                <div>
+                    <div class="sidebar-user-name" id="userName">—</div>
+                    <div class="sidebar-user-role" id="userRole">—</div>
+                </div>
+            </div>
+            <a class="logout-btn" onclick="logout()">🚪 Logout</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header">
+            <h1>Register Customer</h1>
+            <p>Objective 2 — Add a new customer to the system</p>
+        </div>
+
+        <div class="alert alert-success" id="alertSuccess"></div>
+        <div class="alert alert-error"   id="alertError"></div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-header"><h2>New Customer Form</h2></div>
+                <form id="customerForm" onsubmit="handleRegister(event)">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Full Name <span class="required">*</span>
+                        </label>
+                        <input type="text" name="name"
+                               class="form-control"
+                               placeholder="e.g. Jane Wanjiru" required/>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            Email Address <span class="required">*</span>
+                        </label>
+                        <input type="email" name="email"
+                               class="form-control"
+                               placeholder="e.g. jane@gmail.com" required/>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            Phone Number <span class="required">*</span>
+                        </label>
+                        <input type="text" name="phone"
+                               class="form-control"
+                               placeholder="e.g. 0712345678" required/>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            Password <span class="required">*</span>
+                        </label>
+                        <input type="password" name="password"
+                               class="form-control"
+                               placeholder="Create a password" required/>
+                    </div>
+                    <button type="submit" id="regBtn"
+                            class="btn btn-primary btn-full">
+                        Register Customer
+                    </button>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 id="customerCount">All Customers</h2>
+                    <div class="search-bar" style="margin:0;width:180px;">
+                        <input type="text" class="search-input"
+                               placeholder="Search..."
+                               oninput="filterCustomers(this.value)"/>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Registered</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customersTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/auth.js"></script>
+<script>
+let allCustomers = [];
+
+async function init() {
+    const user = await checkAuth('customer_service');
+    if (!user) return;
+    populateSidebar(user);
+    await loadCustomers();
+}
+
+async function loadCustomers() {
+    try {
+        const res = await API.customers.getAll();
+        allCustomers = res.data || [];
+        document.getElementById('customerCount').textContent =
+            `All Customers (${allCustomers.length})`;
+        renderCustomers(allCustomers);
+    } catch(e) {
+        showAlert('alertError', 'Failed to load customers.', 'error');
+    }
+}
+
+function filterCustomers(q) {
+    const filtered = q
+        ? allCustomers.filter(c =>
+            c.name.toLowerCase().includes(q.toLowerCase()) ||
+            c.phone.includes(q) ||
+            c.email.toLowerCase().includes(q.toLowerCase()))
+        : allCustomers;
+    renderCustomers(filtered);
+}
+
+function renderCustomers(customers) {
+    const tbody = document.getElementById('customersTable');
+    if (!customers.length) {
+        tbody.innerHTML = `<tr><td colspan="4">
+            <div class="empty-state">
+                <div class="empty-state-icon">👤</div>
+                <h3>No customers yet</h3>
+            </div></td></tr>`;
+        return;
+    }
+    tbody.innerHTML = customers.map(c => `
+        <tr>
+            <td style="color:var(--color-text-secondary);
+                       font-size:12px;">#${c.customer_id}</td>
+            <td>
+                <strong>${c.name}</strong>
+                <div style="font-size:11px;
+                     color:var(--color-text-secondary);">
+                    ${c.email}</div>
+            </td>
+            <td>${c.phone}</td>
+            <td>${formatDate(c.created_at)}</td>
+        </tr>
+    `).join('');
+}
+
+async function handleRegister(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn  = document.getElementById('regBtn');
+    setLoading(btn, true);
+
+    try {
+        const res = await API.customers.create({
+            name:     form.name.value.trim(),
+            email:    form.email.value.trim(),
+            phone:    form.phone.value.trim(),
+            password: form.password.value
+        });
+        if (res.status === 'success') {
+            showAlert('alertSuccess',
+                `Customer '${form.name.value}' registered!`, 'success');
+            form.reset();
+            await loadCustomers();
+        } else {
+            showAlert('alertError', res.message, 'error');
+        }
+    } catch(e) {
+        showAlert('alertError',
+            'Failed to register. Email may already exist.', 'error');
+    }
+    setLoading(btn, false);
+}
+
+init();
+</script>
+</body>
+</html>

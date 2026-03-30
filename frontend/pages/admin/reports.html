@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Reports — Wells Fargo CMS</title>
+    <link rel="stylesheet" href="../../assets/css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-icon">🚚</span>
+            <div class="sidebar-logo-text">
+                <span class="sidebar-logo-title">Wells Fargo CMS</span>
+                <span class="sidebar-logo-sub">Nairobi CBD Branch</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">Admin Panel</div>
+            <a class="nav-link" href="dashboard.html">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <a class="nav-link" href="staff.html">
+                <span class="nav-icon">👥</span> Manage Staff
+            </a>
+            <a class="nav-link" href="vehicles.html">
+                <span class="nav-icon">🚗</span> Manage Vehicles
+            </a>
+            <a class="nav-link active" href="reports.html">
+                <span class="nav-icon">📈</span> Reports
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar" id="userAvatar">BM</div>
+                <div>
+                    <div class="sidebar-user-name" id="userName">—</div>
+                    <div class="sidebar-user-role" id="userRole">—</div>
+                </div>
+            </div>
+            <a class="logout-btn" onclick="logout()">🚪 Logout</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header page-header-row">
+            <div>
+                <h1>Operational Reports</h1>
+                <p>Objective 4 — Management reports for decision-making</p>
+            </div>
+        </div>
+
+        <div class="alert alert-error" id="alertError"></div>
+
+        <!-- DATE FILTER -->
+        <div class="card" style="padding:16px;margin-bottom:20px;">
+            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+                <label class="form-label" style="margin:0;">Filter by Date:</label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:13px;
+                          color:var(--color-text-secondary);">From</span>
+                    <input type="date" id="dateFrom" class="form-control"
+                           style="width:auto;"/>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:13px;
+                          color:var(--color-text-secondary);">To</span>
+                    <input type="date" id="dateTo" class="form-control"
+                           style="width:auto;"/>
+                </div>
+                <button class="btn btn-primary" onclick="loadReports()">
+                    Generate Report
+                </button>
+                <button class="btn btn-outline" onclick="resetDates()">
+                    Reset
+                </button>
+            </div>
+        </div>
+
+        <!-- SUMMARY STATS -->
+        <div class="stats-grid" id="summaryStats">
+            <div class="stat-card">
+                <div class="stat-icon-wrap blue">📦</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="rParcels">—</div>
+                    <div class="stat-label">Total Parcels</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap green">💰</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="rRevenue">—</div>
+                    <div class="stat-label">Revenue</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap teal">✅</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="rDelivered">—</div>
+                    <div class="stat-label">Delivered</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap purple">📊</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="rRate">—</div>
+                    <div class="stat-label">Delivery Rate</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <!-- STATUS BREAKDOWN -->
+            <div class="card">
+                <div class="card-header"><h2>Status Breakdown</h2></div>
+                <div id="statusChart">
+                    <canvas id="statusCanvas" height="220"></canvas>
+                </div>
+                <div class="table-wrap" style="margin-top:16px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Count</th>
+                                <th>%</th>
+                                <th>Bar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="statusTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ZONE BREAKDOWN -->
+            <div class="card">
+                <div class="card-header"><h2>Parcels by Zone</h2></div>
+                <canvas id="zoneCanvas" height="220"></canvas>
+                <div class="table-wrap" style="margin-top:16px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Zone</th>
+                                <th>Parcels</th>
+                                <th>Revenue (KES)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="zoneTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- DETAILED TABLE -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Detailed Parcel Report</h2>
+                <span style="font-size:12px;
+                      color:var(--color-text-secondary);"
+                      id="reportPeriod"></span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tracking No.</th>
+                            <th>Sender</th>
+                            <th>Recipient</th>
+                            <th>Zone</th>
+                            <th>Service</th>
+                            <th>Price (KES)</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/auth.js"></script>
+<script src="../../assets/js/charts.js"></script>
+<script>
+let statusChart = null;
+let zoneChart   = null;
+
+async function init() {
+    const user = await checkAuth('admin');
+    if (!user) return;
+    populateSidebar(user);
+    resetDates();
+    await loadReports();
+}
+
+function resetDates() {
+    const now   = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    document.getElementById('dateFrom').value =
+        first.toISOString().split('T')[0];
+    document.getElementById('dateTo').value =
+        now.toISOString().split('T')[0];
+}
+
+async function loadReports() {
+    const from = document.getElementById('dateFrom').value;
+    const to   = document.getElementById('dateTo').value;
+
+    document.getElementById('reportPeriod').textContent =
+        `Period: ${from} — ${to}`;
+
+    try {
+        const [summary, zones, parcels] = await Promise.all([
+            API.reports.getSummary(from, to),
+            API.reports.getByZone(from, to),
+            API.parcels.getAll({ from, to, limit: 20 })
+        ]);
+
+        renderSummary(summary.data);
+        renderStatusBreakdown(summary.data);
+        renderZones(zones.data);
+        renderParcels(parcels.data);
+    } catch(e) {
+        showAlert('alertError', 'Failed to load reports.', 'error');
+    }
+}
+
+function renderSummary(d) {
+    if (!d) return;
+    document.getElementById('rParcels').textContent =
+        d.total_parcels ?? 0;
+    document.getElementById('rRevenue').textContent =
+        formatKES(d.revenue ?? 0);
+    document.getElementById('rDelivered').textContent =
+        d.delivered ?? 0;
+    const rate = d.total_parcels > 0
+        ? Math.round((d.delivered / d.total_parcels) * 100)
+        : 0;
+    document.getElementById('rRate').textContent = rate + '%';
+}
+
+function renderStatusBreakdown(d) {
+    if (!d) return;
+    const statuses = [
+        { label: 'Booked',           count: d.booked     ?? 0, cls: 'booked' },
+        { label: 'In Transit',       count: d.in_transit ?? 0, cls: 'in-transit' },
+        { label: 'Delivered',        count: d.delivered  ?? 0, cls: 'delivered' },
+        { label: 'Failed',           count: d.failed     ?? 0, cls: 'failed' }
+    ];
+    const total = d.total_parcels || 1;
+
+    document.getElementById('statusTable').innerHTML =
+        statuses.map(s => {
+            const pct = Math.round((s.count / total) * 100);
+            return `<tr>
+                <td><span class="badge badge-${s.cls}">${s.label}</span></td>
+                <td><strong>${s.count}</strong></td>
+                <td>${pct}%</td>
+                <td>
+                    <div class="progress-bar" style="width:120px;">
+                        <div class="progress-fill"
+                             style="width:${pct}%"></div>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+
+    if (typeof renderStatusChart === 'function') {
+        renderStatusChart('statusCanvas', statuses, statusChart);
+    }
+}
+
+function renderZones(zones) {
+    if (!zones) return;
+    document.getElementById('zoneTable').innerHTML =
+        zones.map(z => `
+            <tr>
+                <td><strong>${z.zone}</strong></td>
+                <td>${z.total}</td>
+                <td>${formatKES(z.revenue)}</td>
+            </tr>
+        `).join('') || `<tr><td colspan="3">
+            <div class="empty-state"><p>No data yet</p></div>
+        </td></tr>`;
+
+    if (typeof renderZoneChart === 'function') {
+        renderZoneChart('zoneCanvas', zones, zoneChart);
+    }
+}
+
+function renderParcels(parcels) {
+    if (!parcels) return;
+    document.getElementById('reportTable').innerHTML =
+        parcels.map(p => `
+            <tr>
+                <td>${trackingBadge(p.tracking_number)}</td>
+                <td>${p.customer_name || '—'}</td>
+                <td>${p.recipient_name}</td>
+                <td>${p.zone}</td>
+                <td>${p.service_type}</td>
+                <td>${formatKES(p.price)}</td>
+                <td>${statusBadge(p.status)}</td>
+                <td>${formatDate(p.date_registered)}</td>
+            </tr>
+        `).join('') || `<tr><td colspan="8">
+            <div class="empty-state"><p>No parcels in this period</p></div>
+        </td></tr>`;
+}
+
+init();
+</script>
+</body>
+</html>

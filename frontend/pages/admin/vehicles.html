@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Manage Vehicles — Wells Fargo CMS</title>
+    <link rel="stylesheet" href="../../assets/css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-icon">🚚</span>
+            <div class="sidebar-logo-text">
+                <span class="sidebar-logo-title">Wells Fargo CMS</span>
+                <span class="sidebar-logo-sub">Nairobi CBD Branch</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">Admin Panel</div>
+            <a class="nav-link" href="dashboard.html">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <a class="nav-link" href="staff.html">
+                <span class="nav-icon">👥</span> Manage Staff
+            </a>
+            <a class="nav-link active" href="vehicles.html">
+                <span class="nav-icon">🚗</span> Manage Vehicles
+            </a>
+            <a class="nav-link" href="reports.html">
+                <span class="nav-icon">📈</span> Reports
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar" id="userAvatar">BM</div>
+                <div>
+                    <div class="sidebar-user-name" id="userName">—</div>
+                    <div class="sidebar-user-role" id="userRole">—</div>
+                </div>
+            </div>
+            <a class="logout-btn" onclick="logout()">🚪 Logout</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header">
+            <h1>Manage Vehicles</h1>
+            <p>Register and manage the courier fleet</p>
+        </div>
+
+        <div class="alert alert-success" id="alertSuccess"></div>
+        <div class="alert alert-error"   id="alertError"></div>
+
+        <div class="stats-grid"
+             style="grid-template-columns:repeat(3,1fr);
+                    max-width:600px;margin-bottom:24px;">
+            <div class="stat-card">
+                <div class="stat-icon-wrap green">✅</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="cntAvailable">—</div>
+                    <div class="stat-label">Available</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap amber">🚛</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="cntOnDelivery">—</div>
+                    <div class="stat-label">On Delivery</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap red">🔧</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="cntMaintenance">—</div>
+                    <div class="stat-label">Maintenance</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-header"><h2>Add New Vehicle</h2></div>
+                <form id="addVehicleForm" onsubmit="handleAddVehicle(event)">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Registration Number <span class="required">*</span>
+                        </label>
+                        <input type="text" name="registration_number"
+                               class="form-control"
+                               placeholder="e.g. KCA 123A" required/>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            Vehicle Type <span class="required">*</span>
+                        </label>
+                        <select name="type" class="form-control" required>
+                            <option value="">-- Select Type --</option>
+                            <option value="Motorcycle">Motorcycle</option>
+                            <option value="Van">Van</option>
+                            <option value="Truck">Truck</option>
+                            <option value="Car">Car</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            Capacity (kg) <span class="required">*</span>
+                        </label>
+                        <input type="number" name="capacity"
+                               class="form-control"
+                               step="0.1" min="1"
+                               placeholder="e.g. 500" required/>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-control">
+                            <option value="Available">Available</option>
+                            <option value="Maintenance">Maintenance</option>
+                        </select>
+                    </div>
+                    <button type="submit" id="addVehicleBtn"
+                            class="btn btn-primary btn-full">
+                        Add Vehicle
+                    </button>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 id="vehicleCount">All Vehicles</h2>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Reg No.</th>
+                                <th>Type</th>
+                                <th>Capacity</th>
+                                <th>Status</th>
+                                <th>Update</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vehiclesTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/auth.js"></script>
+<script>
+async function init() {
+    const user = await checkAuth('admin');
+    if (!user) return;
+    populateSidebar(user);
+    await loadVehicles();
+}
+
+async function loadVehicles() {
+    try {
+        const res = await API.vehicles.getAll();
+        const vehicles = res.data || [];
+        document.getElementById('vehicleCount').textContent =
+            `All Vehicles (${vehicles.length})`;
+
+        const cnt = s => vehicles.filter(v => v.status === s).length;
+        document.getElementById('cntAvailable').textContent =
+            cnt('Available');
+        document.getElementById('cntOnDelivery').textContent =
+            cnt('On Delivery');
+        document.getElementById('cntMaintenance').textContent =
+            cnt('Maintenance');
+
+        const tbody = document.getElementById('vehiclesTable');
+        if (!vehicles.length) {
+            tbody.innerHTML = `<tr><td colspan="5">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🚗</div>
+                    <h3>No vehicles yet</h3>
+                </div></td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = vehicles.map(v => `
+            <tr>
+                <td><strong>${v.registration_number}</strong></td>
+                <td>${v.type}</td>
+                <td>${v.capacity} kg</td>
+                <td><span class="badge badge-${v.status
+                    .toLowerCase().replace(' ','-')}">
+                    ${v.status}</span></td>
+                <td>
+                    <select class="form-control"
+                            style="padding:4px 8px;font-size:12px;width:auto;"
+                            onchange="updateVehicleStatus(${v.vehicle_id},
+                                      this.value)">
+                        <option ${v.status==='Available'?'selected':''}>
+                            Available</option>
+                        <option ${v.status==='On Delivery'?'selected':''}>
+                            On Delivery</option>
+                        <option ${v.status==='Maintenance'?'selected':''}>
+                            Maintenance</option>
+                    </select>
+                </td>
+            </tr>
+        `).join('');
+    } catch(e) {
+        showAlert('alertError', 'Failed to load vehicles.', 'error');
+    }
+}
+
+async function handleAddVehicle(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn  = document.getElementById('addVehicleBtn');
+    setLoading(btn, true);
+    try {
+        const res = await API.vehicles.create({
+            registration_number: form.registration_number.value.trim(),
+            type:     form.type.value,
+            capacity: parseFloat(form.capacity.value),
+            status:   form.status.value
+        });
+        if (res.status === 'success') {
+            showAlert('alertSuccess',
+                `Vehicle '${form.registration_number.value}' added!`,
+                'success');
+            form.reset();
+            await loadVehicles();
+        } else {
+            showAlert('alertError', res.message, 'error');
+        }
+    } catch(e) {
+        showAlert('alertError', 'Failed to add vehicle.', 'error');
+    }
+    setLoading(btn, false);
+}
+
+async function updateVehicleStatus(id, status) {
+    try {
+        await API.vehicles.updateStatus(id, status);
+        showAlert('alertSuccess', `Vehicle status updated to ${status}.`,
+            'success');
+        await loadVehicles();
+    } catch(e) {
+        showAlert('alertError', 'Failed to update status.', 'error');
+    }
+}
+
+init();
+</script>
+</body>
+</html>
