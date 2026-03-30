@@ -1,19 +1,66 @@
 <?php
-$host     = "localhost";
-$user     = "root";
-$password = "root123";
-$database = "courier_cms";
+/* ============================================================
+   Database.php — Singleton Pattern
+   Only ONE connection instance exists at any time.
+   All classes get their connection from here.
+   ============================================================ */
 
-$conn = mysqli_connect($host, $user, $password, $database);
+class Database {
 
-if (!$conn) {
-    die("Connection failed: " . mysqli_connect_error());
+    // ── SINGLETON INSTANCE ────────────────────────────────
+    private static $instance = null;
+
+    // ── CONNECTION ────────────────────────────────────────
+    private $conn;
+
+    // ── DB CREDENTIALS ────────────────────────────────────
+    private $host     = 'localhost';
+    private $db_name  = 'courier_cms';
+    private $username = 'root';
+    private $password = 'root123';
+
+    // ── PRIVATE CONSTRUCTOR ───────────────────────────────
+    // Prevents direct instantiation (new Database())
+    private function __construct() {
+        $this->conn = mysqli_connect(
+            $this->host,
+            $this->username,
+            $this->password,
+            $this->db_name
+        );
+
+        if (!$this->conn) {
+            http_response_code(500);
+            echo json_encode([
+                'status'  => 'error',
+                'message' => 'Database connection failed: '
+                             . mysqli_connect_error()
+            ]);
+            exit();
+        }
+
+        mysqli_set_charset($this->conn, 'utf8mb4');
+    }
+
+    // ── GET SINGLETON INSTANCE ────────────────────────────
+    // Returns the single instance — creates it if not exists
+    public static function getInstance(): Database {
+        if (self::$instance === null) {
+            self::$instance = new Database();
+        }
+        return self::$instance;
+    }
+
+    // ── GET CONNECTION ────────────────────────────────────
+    // Returns the mysqli connection object
+    public function getConnection() {
+        return $this->conn;
+    }
+
+    // ── PREVENT CLONING ───────────────────────────────────
+    private function __clone() {}
+
+    // ── PREVENT UNSERIALIZATION ───────────────────────────
+    public function __wakeup() {}
 }
 ?>
-```
-
-Press **Ctrl+S**.
-
-Then test it — go to browser:
-```
-http://localhost/courier_cms/login.php
