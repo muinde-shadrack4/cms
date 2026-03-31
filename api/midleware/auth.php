@@ -1,106 +1,90 @@
 <?php
-/* ============================================================
-   Auth.php — Session Middleware
-   Runs before every API endpoint.
-   Validates session, checks role, returns JSON errors.
-   ============================================================ */
-
 class Auth {
 
-    // ── START SESSION ─────────────────────────────────────
-    public static function startSession(): void {
+    // Start session safely
+    public static function startSession() {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
+        header('Content-Type: application/json');
+        header('Access-Control-Allow-Origin: http://localhost');
+        header('Access-Control-Allow-Credentials: true');
+        header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type, Accept');
+
+        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+            http_response_code(200);
+            exit;
+        }
     }
 
-    // ── CHECK IF LOGGED IN ────────────────────────────────
-    public static function isLoggedIn(): bool {
-        self::startSession();
-        return isset($_SESSION['user_id'])
-            && !empty($_SESSION['user_id']);
+    // Get request method
+    public static function getMethod() {
+        return $_SERVER['REQUEST_METHOD'];
     }
 
-    // ── REQUIRE LOGIN ─────────────────────────────────────
-    // Returns user data or sends 401 and exits
-    public static function requireLogin(): array {
-        if (!self::isLoggedIn()) {
+    // Get JSON body
+    public static function getBody() {
+        return json_decode(file_get_contents('php://input'), true) ?? [];
+    }
+
+    // Require login — 401 if not logged in
+    public static function requireLogin() {
+        if (empty($_SESSION['user_id'])) {
             self::respond([
                 'status'  => 'error',
-                'message' => 'Not authenticated. Please login.'
+                'message' => 'Unauthorized. Please login.'
             ], 401);
         }
         return $_SESSION;
     }
 
-    // ── REQUIRE SPECIFIC ROLE ─────────────────────────────
-    public static function requireRole($allowedRoles): array {
-        $session = self::requireLogin();
+    // Require specific role
+    public static function requireRole($roles) {
+        self::requireLogin();
+        $allowed = is_array($roles) ? $roles : [$roles];
 
-        $roles = is_array($allowedRoles)
-            ? $allowedRoles
-            : [$allowedRoles];
-
-        if (!in_array($session['role'], $roles)) {
+        if (!in_array($_SESSION['role'], $allowed)) {
             self::respond([
                 'status'  => 'error',
-                'message' => 'Access denied. Insufficient permissions.'
+                'message' => 'Access denied.'
             ], 403);
         }
-
-        return $session;
+        return $_SESSION;
     }
 
-    // ── GET CURRENT USER ──────────────────────────────────
-    public static function getUser(): ?array {
-        if (!self::isLoggedIn()) return null;
-        return [
-            'user_id'   => $_SESSION['user_id'],
-            'full_name' => $_SESSION['full_name'],
-            'role'      => $_SESSION['role'],
-            'username'  => $_SESSION['username'] ?? ''
-        ];
-    }
-
-    // ── SET SESSION ───────────────────────────────────────
+    // Set session after successful login
     public static function setSession(array $user): void {
-        self::startSession();
-        $_SESSION['user_id']   = $user['user_id']
-            ?? $user['customer_id'] ?? null;
-        $_SESSION['full_name'] = $user['full_name']
-            ?? $user['name'] ?? '';
-        $_SESSION['role']      = $user['role'] ?? 'customer';
-        $_SESSION['username']  = $user['username']
-            ?? $user['email'] ?? '';
+        $_SESSION['user_id']   = $user['user_id'];
+        $_SESSION['full_name'] = $user['full_name'] ?? $user['name'] ?? '';
+        $_SESSION['role']      = $user['role'];
+        $_SESSION['username']  = $user['username'] ?? '';
+        if (isset($user['customer_id'])) {
+            $_SESSION['customer_id'] = $user['customer_id'];
+        }
     }
 
-    // ── DESTROY SESSION ───────────────────────────────────
+    // Destroy session on logout
     public static function destroySession(): void {
-        self::startSession();
+        $_SESSION = [];
+        if (ini_get('session.use_cookies')) {
+            $p = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 42000,
+                $p['path'], $p['domain'], $p['secure'], $p['httponly']);
+        }
         session_destroy();
     }
 
-    // ── SEND JSON RESPONSE ────────────────────────────────
-    public static function respond(array $data,
-                                   int $code = 200): void {
+    // Get current user
+    public static function getUser(): ?array {
+        if (empty($_SESSION['user_id'])) return null;
+        return $_SESSION;
+    }
+
+    // Send JSON response and stop
+    public static function respond($data, $code = 200) {
         http_response_code($code);
-        header('Content-Type: application/json');
-        header('Access-Control-Allow-Origin: *');
-        header('Access-Control-Allow-Methods: GET,POST,PUT,DELETE');
-        header('Access-Control-Allow-Headers: Content-Type');
         echo json_encode($data);
-        exit();
-    }
-
-    // ── GET REQUEST BODY ──────────────────────────────────
-    public static function getBody(): array {
-        $raw = file_get_contents('php://input');
-        return json_decode($raw, true) ?? [];
-    }
-
-    // ── GET METHOD ────────────────────────────────────────
-    public static function getMethod(): string {
-        return $_SERVER['REQUEST_METHOD'];
+        exit;
     }
 }
-?>

@@ -6,8 +6,8 @@
    PUT  → update status (admin only)
    ============================================================ */
 
-require_once __DIR__ . '/../middleware/Auth.php';
-require_once __DIR__ . '/../classes/Vehicle.php';
+require_once __DIR__ . '/../midleware/auth.php';
+require_once __DIR__ . '/../classes/vehicle.php';
 
 Auth::startSession();
 

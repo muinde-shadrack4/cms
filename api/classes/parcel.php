@@ -7,7 +7,7 @@
    - DSA: Queue (FIFO) for dispatch ordering
    ============================================================ */
 
-require_once __DIR__ . '/../config/Database.php';
+require_once __DIR__ . '/../config/db.php';
 
 class Parcel {
 
@@ -99,25 +99,33 @@ class Parcel {
 
     // ── CREATE PARCEL ─────────────────────────────────────
     public function create(array $data): array {
-        $tracking = $this->generateTracking();
-        $price    = $this->calculatePrice(
+        $tracking       = $this->generateTracking();
+        $price          = $this->calculatePrice(
             $data['weight'],
             $data['zone'],
             $data['service_type']
         );
 
+        $recipientEmail = $data['recipient_email'] ?? '';
+
         $stmt = mysqli_prepare($this->conn,
             "INSERT INTO {$this->table}
              (tracking_number, customer_id, recipient_name,
-              recipient_phone, recipient_address,
+              recipient_phone, recipient_email, recipient_address,
               weight, service_type, zone, price, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Booked')");
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Booked')");
 
-        mysqli_stmt_bind_param($stmt, 'sisssdss d',
+        // ✅ Fixed: 10 vars = sissssdssd
+        // s=tracking, i=customer_id, s=recipient_name,
+        // s=recipient_phone, s=recipientEmail,
+        // s=recipient_address, d=weight,
+        // s=service_type, s=zone, d=price
+        mysqli_stmt_bind_param($stmt, 'sissssdssd',
             $tracking,
             $data['customer_id'],
             $data['recipient_name'],
             $data['recipient_phone'],
+            $recipientEmail,
             $data['recipient_address'],
             $data['weight'],
             $data['service_type'],
@@ -128,10 +136,7 @@ class Parcel {
         if (mysqli_stmt_execute($stmt)) {
             $parcel_id = mysqli_insert_id($this->conn);
             mysqli_stmt_close($stmt);
-
-            // Add initial tracking update
             $this->addInitialTracking($parcel_id);
-
             return [
                 'success'         => true,
                 'parcel_id'       => $parcel_id,
@@ -184,17 +189,14 @@ class Parcel {
     }
 
     // ── PRICING ALGORITHM ─────────────────────────────────
-    // From proposal Section 3.5.6
     public function calculatePrice(float $weight,
                                    string $zone,
                                    string $service): float {
-        // Base price by weight
         if ($weight <= 1)        $base = 200;
         elseif ($weight <= 5)    $base = 200 + (($weight - 1) * 50);
         elseif ($weight <= 10)   $base = 400 + (($weight - 5) * 80);
         else                     $base = 800 + (($weight - 10) * 100);
 
-        // Zone multipliers
         $zoneMultipliers = [
             'CBD'       => 1.0,
             'Westlands' => 1.2,
@@ -203,16 +205,13 @@ class Parcel {
         ];
         $base *= $zoneMultipliers[$zone] ?? 1.0;
 
-        // Service type multipliers
         if ($service === 'express')  $base *= 1.5;
         if ($service === 'same-day') $base *= 1.3;
 
-        // Minimum price
         return round(max($base, 150), 2);
     }
 
     // ── TRACKING NUMBER GENERATOR ─────────────────────────
-    // Format: WF-YEAR-XXXXXXX
     private function generateTracking(): string {
         do {
             $tracking = 'WF-' . date('Y') . '-'
@@ -225,7 +224,7 @@ class Parcel {
             $result = mysqli_stmt_get_result($stmt);
             $exists = mysqli_num_rows($result) > 0;
             mysqli_stmt_close($stmt);
-        } while ($exists); // Ensure unique
+        } while ($exists);
 
         return $tracking;
     }

@@ -1,10 +1,9 @@
 <?php
 /* ============================================================
    Customer.php — Customer Model (OOP)
-   Separate from staff — customers are NOT employees
    ============================================================ */
 
-require_once __DIR__ . '/../config/Database.php';
+require_once __DIR__ . '/../config/db.php';
 
 class Customer {
 
@@ -43,6 +42,24 @@ class Customer {
 
     // ── CREATE CUSTOMER ───────────────────────────────────
     public function create(array $data): array {
+
+        // ✅ Explicitly check email first
+        $check = mysqli_prepare($this->conn,
+            "SELECT customer_id FROM {$this->table} WHERE email = ?");
+        mysqli_stmt_bind_param($check, 's', $data['email']);
+        mysqli_stmt_execute($check);
+        mysqli_stmt_store_result($check);
+
+        if (mysqli_stmt_num_rows($check) > 0) {
+            mysqli_stmt_close($check);
+            return [
+                'success' => false,
+                'message' => 'Email already registered. Please use a different email.'
+            ];
+        }
+        mysqli_stmt_close($check);
+
+        // ✅ Hash password and insert
         $hashed = password_hash($data['password'], PASSWORD_BCRYPT);
 
         $stmt = mysqli_prepare($this->conn,
@@ -65,12 +82,7 @@ class Customer {
         $error = mysqli_stmt_error($stmt);
         mysqli_stmt_close($stmt);
 
-        if (str_contains($error, 'Duplicate')) {
-            return ['success' => false,
-                    'message' => 'Email already registered.'];
-        }
-
-        return ['success' => false, 'message' => $error];
+        return ['success' => false, 'message' => 'Registration failed: ' . $error];
     }
 
     // ── VERIFY LOGIN ──────────────────────────────────────

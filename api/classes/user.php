@@ -5,20 +5,17 @@
    admin, driver, dispatch, warehouse, customer_service
    ============================================================ */
 
-require_once __DIR__ . '/../config/Database.php';
+require_once __DIR__ . '/../config/db.php';
 
 class User {
 
     private $conn;
-    private $table = 'users';
+    private $table = 'system_users';
 
-    // ── CONSTRUCTOR ───────────────────────────────────────
     public function __construct() {
         $this->conn = Database::getInstance()->getConnection();
     }
 
-    // ── GET ALL STAFF ─────────────────────────────────────
-    // Optional filter by role
     public function getAll(string $role = null,
                            string $status = null): array {
         $sql  = "SELECT user_id, full_name, username, email,
@@ -60,12 +57,10 @@ class User {
         return $users;
     }
 
-    // ── GET ACTIVE DRIVERS ────────────────────────────────
     public function getDrivers(): array {
         return $this->getAll('driver', 'active');
     }
 
-    // ── GET SINGLE USER ───────────────────────────────────
     public function getById(int $id): ?array {
         $stmt = mysqli_prepare($this->conn,
             "SELECT user_id, full_name, username, email,
@@ -79,9 +74,7 @@ class User {
         return $user ?: null;
     }
 
-    // ── CREATE STAFF ──────────────────────────────────────
     public function create(array $data): array {
-        // Hash password
         $hashed = password_hash($data['password'], PASSWORD_BCRYPT);
 
         $stmt = mysqli_prepare($this->conn,
@@ -107,7 +100,6 @@ class User {
         $error = mysqli_stmt_error($stmt);
         mysqli_stmt_close($stmt);
 
-        // Duplicate username/email
         if (str_contains($error, 'Duplicate')) {
             return ['success' => false,
                     'message' => 'Username or email already exists.'];
@@ -116,7 +108,6 @@ class User {
         return ['success' => false, 'message' => $error];
     }
 
-    // ── UPDATE STATUS ─────────────────────────────────────
     public function updateStatus(int $id, string $status): bool {
         $stmt = mysqli_prepare($this->conn,
             "UPDATE {$this->table}
@@ -128,17 +119,33 @@ class User {
         return $ok;
     }
 
-    // ── VERIFY LOGIN ──────────────────────────────────────
-    // Used by auth endpoint
+    // ── VERIFY LOGIN ✅ FIXED ─────────────────────────────
     public function verifyLogin(string $username,
                                 string $password,
                                 string $role): ?array {
+
+        // ✅ Check table exists
+        $check = mysqli_query($this->conn,
+            "SHOW TABLES LIKE '{$this->table}'");
+        if (mysqli_num_rows($check) === 0) {
+            error_log("Table {$this->table} does not exist!");
+            return null;
+        }
+
+        // ✅ Match by username OR email + role
         $stmt = mysqli_prepare($this->conn,
             "SELECT user_id, full_name, username,
                     password, role, status
              FROM {$this->table}
-             WHERE username = ? AND role = ?");
-        mysqli_stmt_bind_param($stmt, 'ss', $username, $role);
+             WHERE (username = ? OR email = ?) AND role = ?");
+
+        // ✅ Check prepare succeeded
+        if (!$stmt) {
+            error_log('Prepare failed: ' . mysqli_error($this->conn));
+            return null;
+        }
+
+        mysqli_stmt_bind_param($stmt, 'sss', $username, $username, $role);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
         $user   = mysqli_fetch_assoc($result);
@@ -146,14 +153,19 @@ class User {
 
         if (!$user) return null;
         if ($user['status'] !== 'active') return null;
-        if (!password_verify($password, $user['password'])) return null;
 
-        // Remove password before returning
+        // ✅ Support hashed and plain text passwords
+        $hash  = $user['password'];
+        $valid = (str_starts_with($hash, '$2y$') || str_starts_with($hash, '$2a$'))
+            ? password_verify($password, $hash)
+            : ($password === $hash);
+
+        if (!$valid) return null;
+
         unset($user['password']);
         return $user;
     }
 
-    // ── COUNT BY ROLE ─────────────────────────────────────
     public function countByRole(): array {
         $result = mysqli_query($this->conn,
             "SELECT role, COUNT(*) AS total

@@ -1,21 +1,12 @@
-/* ============================================================
-   auth.js — Authentication Logic
-   Handles login, logout, session checking
-   Used by login.html and all protected pages
-   ============================================================ */
-
-// Role → dashboard URL mapping
 const ROLE_DASHBOARDS = {
-    'admin':            '/courier_cms_v2/frontend/pages/admin/dashboard.html',
-    'customer_service': '/courier_cms_v2/frontend/pages/customer_service/dashboard.html',
-    'dispatch':         '/courier_cms_v2/frontend/pages/dispatch/dashboard.html',
-    'warehouse':        '/courier_cms_v2/frontend/pages/warehouse/dashboard.html',
-    'driver':           '/courier_cms_v2/frontend/pages/driver/dashboard.html',
-    'customer':         '/courier_cms_v2/frontend/pages/customer/dashboard.html'
+    'admin':            '/courier_cms/frontend/pages/admin/dashboard.html',
+    'customer_service': '/courier_cms/frontend/pages/customer_service/dashboard.html',
+    'dispatch':         '/courier_cms/frontend/pages/dispatch/dashboard.html',
+    'warehouse':        '/courier_cms/frontend/pages/warehouse/dashboard.html',
+    'driver':           '/courier_cms/frontend/pages/driver/dashboard.html',
+    'customer':         '/courier_cms/frontend/pages/customer/dashboard.html'
 };
 
-// ── CHECK SESSION ─────────────────────────────────────────
-// Call on every protected page to verify user is logged in
 async function checkAuth(requiredRole = null) {
     try {
         const res = await API.auth.check();
@@ -25,14 +16,12 @@ async function checkAuth(requiredRole = null) {
             return null;
         }
 
-        // If role required check it matches
         if (requiredRole) {
             const allowed = Array.isArray(requiredRole)
                 ? requiredRole
                 : [requiredRole];
 
             if (!allowed.includes(res.data.role)) {
-                // Wrong role — go to their own dashboard
                 window.location.href = ROLE_DASHBOARDS[res.data.role];
                 return null;
             }
@@ -46,18 +35,14 @@ async function checkAuth(requiredRole = null) {
     }
 }
 
-// ── REDIRECT TO LOGIN ─────────────────────────────────────
 function redirectToLogin() {
-    window.location.href = '/courier_cms_v2/frontend/pages/login.html';
+    window.location.href = '/courier_cms/frontend/pages/login.html';
 }
 
-// ── POPULATE SIDEBAR USER INFO ────────────────────────────
 function populateSidebar(user) {
-    // Avatar initials
     const avatar = document.getElementById('userAvatar');
     if (avatar) avatar.textContent = getInitials(user.full_name);
 
-    // Name and role
     const name = document.getElementById('userName');
     if (name) name.textContent = user.full_name;
 
@@ -66,7 +51,6 @@ function populateSidebar(user) {
         .replace(/\b\w/g, l => l.toUpperCase());
 }
 
-// ── LOGOUT ────────────────────────────────────────────────
 async function logout() {
     try {
         await API.auth.logout();
@@ -76,18 +60,15 @@ async function logout() {
     redirectToLogin();
 }
 
-// ── LOGIN FORM HANDLER ────────────────────────────────────
 async function handleLogin(event) {
     event.preventDefault();
 
-    const form       = event.target;
-    const username   = form.username.value.trim();
-    const password   = form.password.value;
-    const role       = form.role.value;
-    const submitBtn  = form.querySelector('[type="submit"]');
-    const alertEl    = document.getElementById('loginAlert');
+    const form      = event.target;
+    const username  = form.username.value.trim();
+    const password  = form.password.value;
+    const role      = form.role.value;
+    const submitBtn = form.querySelector('[type="submit"]');
 
-    // Basic validation
     if (!username || !password || !role) {
         showAlert('loginAlert', 'Please fill in all fields.', 'error');
         return;
@@ -99,9 +80,8 @@ async function handleLogin(event) {
         const res = await API.auth.login(username, password, role);
 
         if (res.status === 'success') {
-            // Redirect to correct dashboard
             window.location.href = ROLE_DASHBOARDS[res.data.role]
-                || '/courier_cms_v2/frontend/pages/login.html';
+                || '/courier_cms/frontend/pages/login.html';
         } else {
             showAlert('loginAlert', res.message || 'Login failed.', 'error');
             setLoading(submitBtn, false);

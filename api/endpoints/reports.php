@@ -7,12 +7,12 @@
    GET ?type=drivers    → top drivers
    ============================================================ */
 
-require_once __DIR__ . '/../middleware/Auth.php';
-require_once __DIR__ . '/../classes/Parcel.php';
-require_once __DIR__ . '/../classes/Customer.php';
-require_once __DIR__ . '/../classes/Inventory.php';
-require_once __DIR__ . '/../classes/Dispatch.php';
-require_once __DIR__ . '/../classes/User.php';
+require_once __DIR__ . '/../midleware/auth.php';
+require_once __DIR__ . '/../classes/parcel.php';
+require_once __DIR__ . '/../classes/customer.php';
+require_once __DIR__ . '/../classes/inventory.php';
+require_once __DIR__ . '/../classes/dispatch.php';
+require_once __DIR__ . '/../classes/user.php';
 
 Auth::startSession();
 

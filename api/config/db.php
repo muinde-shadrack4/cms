@@ -1,66 +1,46 @@
 <?php
 /* ============================================================
-   Database.php — Singleton Pattern
-   Only ONE connection instance exists at any time.
-   All classes get their connection from here.
+   Database.php — Singleton DB Connection
    ============================================================ */
 
 class Database {
 
-    // ── SINGLETON INSTANCE ────────────────────────────────
     private static $instance = null;
-
-    // ── CONNECTION ────────────────────────────────────────
     private $conn;
 
-    // ── DB CREDENTIALS ────────────────────────────────────
     private $host     = 'localhost';
-    private $db_name  = 'courier_cms';
-    private $username = 'root';
-    private $password = 'root123';
+    private $user     = 'root';
+    private $password = '';
+    private $database = 'courier_cms';
 
-    // ── PRIVATE CONSTRUCTOR ───────────────────────────────
-    // Prevents direct instantiation (new Database())
     private function __construct() {
         $this->conn = mysqli_connect(
             $this->host,
-            $this->username,
+            $this->user,
             $this->password,
-            $this->db_name
+            $this->database
         );
 
         if (!$this->conn) {
-            http_response_code(500);
-            echo json_encode([
+            die(json_encode([
                 'status'  => 'error',
-                'message' => 'Database connection failed: '
-                             . mysqli_connect_error()
-            ]);
-            exit();
+                'message' => 'DB Connection failed: ' . mysqli_connect_error()
+            ]));
         }
 
-        mysqli_set_charset($this->conn, 'utf8mb4');
+        mysqli_set_charset($this->conn, 'utf8');
     }
 
-    // ── GET SINGLETON INSTANCE ────────────────────────────
-    // Returns the single instance — creates it if not exists
-    public static function getInstance(): Database {
+    // Singleton — only one connection ever
+    public static function getInstance(): self {
         if (self::$instance === null) {
-            self::$instance = new Database();
+            self::$instance = new self();
         }
         return self::$instance;
     }
 
-    // ── GET CONNECTION ────────────────────────────────────
-    // Returns the mysqli connection object
+    // Return the connection
     public function getConnection() {
         return $this->conn;
     }
-
-    // ── PREVENT CLONING ───────────────────────────────────
-    private function __clone() {}
-
-    // ── PREVENT UNSERIALIZATION ───────────────────────────
-    public function __wakeup() {}
 }
-?>

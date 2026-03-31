@@ -5,8 +5,8 @@
    POST → register new customer
    ============================================================ */
 
-require_once __DIR__ . '/../middleware/Auth.php';
-require_once __DIR__ . '/../classes/Customer.php';
+require_once __DIR__ . '/../midleware/auth.php';
+require_once __DIR__ . '/../classes/customer.php';
 
 Auth::startSession();
 

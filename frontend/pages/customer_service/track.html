@@ -17,12 +17,15 @@
             </div>
         </div>
         <nav class="sidebar-nav">
-            <div class="nav-section">My Account</div>
+            <div class="nav-section">Customer Service</div>
             <a class="nav-link" href="dashboard.html">
-                <span class="nav-icon">📦</span> My Parcels
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <a class="nav-link" href="register_customer.html">
+                <span class="nav-icon">👤</span> Register Customer
             </a>
             <a class="nav-link" href="register_parcel.html">
-                <span class="nav-icon">➕</span> Book Parcel
+                <span class="nav-icon">📦</span> Book Parcel
             </a>
             <a class="nav-link active" href="track.html">
                 <span class="nav-icon">🔍</span> Track Parcel
@@ -30,10 +33,10 @@
         </nav>
         <div class="sidebar-footer">
             <div class="sidebar-user">
-                <div class="sidebar-avatar" id="userAvatar">CU</div>
+                <div class="sidebar-avatar" id="userAvatar">CS</div>
                 <div>
                     <div class="sidebar-user-name" id="userName">—</div>
-                    <div class="sidebar-user-role" id="userRole">Customer</div>
+                    <div class="sidebar-user-role" id="userRole">—</div>
                 </div>
             </div>
             <a class="logout-btn" onclick="logout()">🚪 Logout</a>
@@ -42,8 +45,8 @@
 
     <main class="main-content">
         <div class="page-header">
-            <h1>Track My Parcel</h1>
-            <p>Enter your tracking number to see the current status</p>
+            <h1>Track Parcel</h1>
+            <p>Look up any parcel by tracking number</p>
         </div>
 
         <!-- SEARCH -->
@@ -51,11 +54,9 @@
             <div class="search-bar">
                 <input type="text" class="search-input" id="trackingInput"
                        placeholder="Enter tracking number — e.g. WF-2026-1234567"
-                       style="font-family:var(--font-mono);
-                              text-transform:uppercase;"
+                       style="font-family:var(--font-mono);text-transform:uppercase;"
                        onkeydown="if(event.key==='Enter') trackParcel()"/>
-                <button class="btn btn-primary"
-                        onclick="trackParcel()">
+                <button class="btn btn-primary" onclick="trackParcel()">
                     🔍 Track
                 </button>
             </div>
@@ -65,8 +66,6 @@
 
         <!-- RESULT -->
         <div id="resultSection" style="display:none;">
-
-            <!-- PARCEL DETAILS -->
             <div class="card" id="parcelCard">
                 <div class="card-header">
                     <h2>Parcel Details</h2>
@@ -74,12 +73,8 @@
                 </div>
                 <div class="detail-grid" id="parcelDetails"></div>
             </div>
-
-            <!-- TIMELINE -->
             <div class="card">
-                <div class="card-header">
-                    <h2>Tracking History</h2>
-                </div>
+                <div class="card-header"><h2>Tracking History</h2></div>
                 <div class="timeline" id="timeline"></div>
             </div>
         </div>
@@ -89,8 +84,7 @@
             <div class="card not-found">
                 <div class="not-found-icon">🔎</div>
                 <h3>Parcel Not Found</h3>
-                <p>No parcel found with that tracking number.
-                   Please check and try again.</p>
+                <p>No parcel found with that tracking number. Please check and try again.</p>
             </div>
         </div>
     </main>
@@ -99,18 +93,15 @@
 <script src="../../assets/js/api.js"></script>
 <script src="../../assets/js/auth.js"></script>
 <script>
-let currentUser = null;
-
 async function init() {
-    currentUser = await checkAuth('customer');
-    if (!currentUser) return;
-    populateSidebar(currentUser);
+    const user = await checkAuth('customer_service');
+    if (!user) return;
+    populateSidebar(user);
 }
 
 async function trackParcel() {
-    const input   = document.getElementById('trackingInput');
+    const input    = document.getElementById('trackingInput');
     const tracking = input.value.trim().toUpperCase();
-
     if (!tracking) return;
 
     document.getElementById('resultSection').style.display = 'none';
@@ -118,7 +109,6 @@ async function trackParcel() {
 
     try {
         const res = await API.parcels.getByTracking(tracking);
-
         if (!res.data) {
             document.getElementById('notFound').style.display = 'block';
             return;
@@ -126,21 +116,19 @@ async function trackParcel() {
 
         const parcel = res.data;
 
-        // Status badge
         document.getElementById('statusBadgeEl').innerHTML =
-            `<span class="badge badge-${parcel.status
-                .toLowerCase().replace(/\s+/g,'-')}"
-                   style="font-size:13px;padding:6px 14px;">
-                ${parcel.status}
-            </span>`;
+            `<span class="badge badge-${parcel.status.toLowerCase().replace(/\s+/g,'-')}"
+                   style="font-size:13px;padding:6px 14px;">${parcel.status}</span>`;
 
-        // Details grid
         document.getElementById('parcelDetails').innerHTML = `
             <div class="detail-item">
                 <div class="detail-label">Tracking Number</div>
-                <div class="detail-value"
-                     style="font-family:var(--font-mono);font-size:13px;">
+                <div class="detail-value" style="font-family:var(--font-mono);font-size:13px;">
                     ${parcel.tracking_number}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Sender</div>
+                <div class="detail-value">${parcel.customer_name || '—'}</div>
             </div>
             <div class="detail-item">
                 <div class="detail-label">Recipient</div>
@@ -153,46 +141,34 @@ async function trackParcel() {
             <div class="detail-item">
                 <div class="detail-label">Service Type</div>
                 <div class="detail-value">
-                    ${parcel.service_type.charAt(0).toUpperCase() +
-                      parcel.service_type.slice(1)}</div>
+                    ${parcel.service_type.charAt(0).toUpperCase() + parcel.service_type.slice(1)}</div>
             </div>
             <div class="detail-item">
                 <div class="detail-label">Price</div>
-                <div class="detail-value">
-                    <strong>${formatKES(parcel.price)}</strong></div>
+                <div class="detail-value"><strong>${formatKES(parcel.price)}</strong></div>
             </div>
             <div class="detail-item">
                 <div class="detail-label">Booked On</div>
-                <div class="detail-value">
-                    ${formatDate(parcel.date_registered)}</div>
+                <div class="detail-value">${formatDate(parcel.date_registered)}</div>
             </div>
         `;
 
-        // Tracking history
         const histRes  = await API.tracking.getHistory(parcel.parcel_id);
         const updates  = histRes.data || [];
         const timeline = document.getElementById('timeline');
 
         if (!updates.length) {
-            timeline.innerHTML = `<p class="text-muted"
-                style="padding:20px 0;">No tracking updates yet.</p>`;
+            timeline.innerHTML = `<p style="padding:20px 0;color:var(--color-text-secondary);">
+                No tracking updates yet.</p>`;
         } else {
             timeline.innerHTML = updates.map((u, i) => `
                 <div class="tl-item">
-                    <div class="tl-dot ${
-                        i === updates.length-1 ? 'active' : ''}">
-                    </div>
+                    <div class="tl-dot ${i === updates.length-1 ? 'active' : ''}"></div>
                     <div class="tl-content">
                         <div class="tl-status">${u.status}</div>
-                        ${u.location
-                            ? `<div class="tl-loc">📍 ${u.location}</div>`
-                            : ''}
-                        ${u.notes
-                            ? `<div class="tl-loc">${u.notes}</div>`
-                            : ''}
-                        <div class="tl-meta">
-                            ${formatDate(u.updated_at)}
-                        </div>
+                        ${u.location ? `<div class="tl-loc">📍 ${u.location}</div>` : ''}
+                        ${u.notes    ? `<div class="tl-loc">${u.notes}</div>` : ''}
+                        <div class="tl-meta">${formatDate(u.updated_at)}</div>
                     </div>
                 </div>
             `).join('');

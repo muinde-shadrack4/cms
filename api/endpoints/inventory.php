@@ -6,8 +6,8 @@
    DELETE → remove from inventory
    ============================================================ */
 
-require_once __DIR__ . '/../middleware/Auth.php';
-require_once __DIR__ . '/../classes/Inventory.php';
+require_once __DIR__ . '/../midleware/auth.php';
+require_once __DIR__ . '/../classes/inventory.php';
 
 Auth::startSession();
 

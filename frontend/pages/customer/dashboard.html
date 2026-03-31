@@ -4,7 +4,7 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>My Account — Wells Fargo CMS</title>
-    <link rel="stylesheet" href="../../assets/css/style.css"/>
+    <link rel="stylesheet" href="../../assets/css/styles.css"/>
 </head>
 <body>
 <div class="app-layout">
@@ -20,6 +20,9 @@
             <div class="nav-section">My Account</div>
             <a class="nav-link active" href="dashboard.html">
                 <span class="nav-icon">📦</span> My Parcels
+            </a>
+            <a class="nav-link" href="register_parcel.html">
+                <span class="nav-icon">➕</span> Book Parcel
             </a>
             <a class="nav-link" href="track.html">
                 <span class="nav-icon">🔍</span> Track Parcel
@@ -102,8 +105,22 @@
 let currentUser = null;
 
 async function init() {
-    currentUser = await checkAuth('customer');
-    if (!currentUser) return;
+    try {
+        // ✅ Check session directly
+        const res = await API.auth.check();
+
+        if (res.status === 'success' && res.data.role === 'customer') {
+            currentUser = res.data;
+        } else {
+            window.location.href = '../login.html';
+            return;
+        }
+
+    } catch(e) {
+        window.location.href = '../login.html';
+        return;
+    }
+
     populateSidebar(currentUser);
     document.getElementById('welcomeMsg').textContent =
         `Welcome back, ${currentUser.full_name}`;
@@ -112,9 +129,15 @@ async function init() {
 
 async function loadParcels() {
     try {
-        const customerId = currentUser.customer_id ||
-            currentUser.user_id.toString().replace('C','');
-        const res = await API.parcels.getByCustomer(customerId);
+        // ✅ Get customer_id from session
+        const customerId = currentUser.customer_id;
+
+        if (!customerId) {
+            showAlert('alertError', 'Customer ID not found.', 'error');
+            return;
+        }
+
+        const res     = await API.parcels.getByCustomer(customerId);
         const parcels = res.data || [];
 
         const delivered = parcels.filter(p =>
@@ -143,6 +166,7 @@ async function loadParcels() {
                 <td>${formatDate(p.date_registered)}</td>
             </tr>
         `).join('');
+
     } catch(e) {
         showAlert('alertError', 'Failed to load parcels.', 'error');
     }

@@ -1,15 +1,8 @@
-/* ============================================================
-   api.js — Central API Communication Layer
-   ALL fetch calls go through this file
-   Frontend never touches PHP directly
-   ============================================================ */
-
 const API = {
 
-    // Base URL — points to our PHP backend
-    BASE: '/courier_cms_v2/api/endpoints',
+    // ✅ Fixed project name
+    BASE: '/courier_cms/api/endpoints',
 
-    // ── HELPER: Make HTTP request ──────────────────────────
     async request(endpoint, method = 'GET', data = null) {
         const options = {
             method,
@@ -17,7 +10,7 @@ const API = {
                 'Content-Type': 'application/json',
                 'Accept':       'application/json'
             },
-            credentials: 'include' // send session cookies
+            credentials: 'include'
         };
 
         if (data && method !== 'GET') {
@@ -40,7 +33,6 @@ const API = {
         }
     },
 
-    // ── AUTH ───────────────────────────────────────────────
     auth: {
         login(username, password, role) {
             return API.request('auth.php', 'POST', { username, password, role });
@@ -53,7 +45,6 @@ const API = {
         }
     },
 
-    // ── CUSTOMERS ─────────────────────────────────────────
     customers: {
         getAll() {
             return API.request('customers.php', 'GET');
@@ -66,7 +57,6 @@ const API = {
         }
     },
 
-    // ── PARCELS ───────────────────────────────────────────
     parcels: {
         getAll(filters = {}) {
             const params = new URLSearchParams(filters).toString();
@@ -83,7 +73,6 @@ const API = {
         }
     },
 
-    // ── TRACKING ──────────────────────────────────────────
     tracking: {
         getHistory(parcelId) {
             return API.request(`tracking.php?parcel_id=${parcelId}`, 'GET');
@@ -93,7 +82,6 @@ const API = {
         }
     },
 
-    // ── USERS (STAFF) ─────────────────────────────────────
     users: {
         getAll(role = null) {
             const query = role ? `?role=${role}` : '';
@@ -110,7 +98,6 @@ const API = {
         }
     },
 
-    // ── VEHICLES ──────────────────────────────────────────
     vehicles: {
         getAll() {
             return API.request('vehicles.php', 'GET');
@@ -123,7 +110,6 @@ const API = {
         }
     },
 
-    // ── INVENTORY ─────────────────────────────────────────
     inventory: {
         getAll(search = '') {
             const query = search ? `?search=${search}` : '';
@@ -141,7 +127,6 @@ const API = {
         }
     },
 
-    // ── DISPATCH ──────────────────────────────────────────
     dispatch: {
         getPending() {
             return API.request('dispatch.php?status=pending', 'GET');
@@ -157,7 +142,6 @@ const API = {
         }
     },
 
-    // ── REPORTS ───────────────────────────────────────────
     reports: {
         getSummary(from, to) {
             return API.request(`reports.php?from=${from}&to=${to}`, 'GET');
@@ -171,9 +155,6 @@ const API = {
     }
 };
 
-// ── HELPER FUNCTIONS ──────────────────────────────────────
-
-// Format date nicely
 function formatDate(dateStr) {
     if (!dateStr) return '—';
     return new Date(dateStr).toLocaleDateString('en-KE', {
@@ -181,27 +162,23 @@ function formatDate(dateStr) {
     });
 }
 
-// Format currency
 function formatKES(amount) {
     return 'KES ' + parseFloat(amount).toLocaleString('en-KE', {
         minimumFractionDigits: 2
     });
 }
 
-// Get badge HTML for status
 function statusBadge(status) {
     const cls = status.toLowerCase().replace(/\s+/g, '-');
     return `<span class="badge badge-${cls}">${status}</span>`;
 }
 
-// Get badge for role
 function roleBadge(role) {
     return `<span class="badge badge-${role.replace('_','-')}">${
         role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
     }</span>`;
 }
 
-// Show alert message
 function showAlert(elementId, message, type = 'success') {
     const el = document.getElementById(elementId);
     if (!el) return;
@@ -210,7 +187,6 @@ function showAlert(elementId, message, type = 'success') {
     setTimeout(() => el.classList.remove('show'), 5000);
 }
 
-// Show loading state on button
 function setLoading(btn, loading = true) {
     if (loading) {
         btn.dataset.original = btn.innerHTML;
@@ -222,12 +198,10 @@ function setLoading(btn, loading = true) {
     }
 }
 
-// Get initials for avatar
 function getInitials(name) {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
-// Get tracking number badge
 function trackingBadge(tracking) {
     return `<span class="tracking-no">${tracking}</span>`;
 }

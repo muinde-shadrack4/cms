@@ -1,14 +1,17 @@
 <?php
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
 /* ============================================================
    auth.php — Authentication Endpoint
-   POST   → login
-   POST   ?action=logout → logout
-   GET    ?action=check  → check session
+   POST              → login
+   POST ?action=logout → logout
+   GET  ?action=check  → check session
    ============================================================ */
 
-require_once __DIR__ . '/../middleware/Auth.php';
-require_once __DIR__ . '/../classes/User.php';
-require_once __DIR__ . '/../classes/Customer.php';
+require_once __DIR__ . '/../midleware/auth.php';
+require_once __DIR__ . '/../classes/user.php';
+require_once __DIR__ . '/../classes/customer.php';
 
 Auth::startSession();
 
@@ -24,7 +27,16 @@ if ($method === 'OPTIONS') {
 if ($method === 'GET' && $action === 'check') {
     $user = Auth::getUser();
     if ($user) {
-        Auth::respond(['status' => 'success', 'data' => $user]);
+        Auth::respond([
+            'status' => 'success',
+            'data'   => [
+                'user_id'     => $user['user_id'],
+                'full_name'   => $user['full_name'],
+                'role'        => $user['role'],
+                'username'    => $user['username']    ?? '',
+                'customer_id' => $user['customer_id'] ?? null
+            ]
+        ]);
     }
     Auth::respond([
         'status'  => 'error',
@@ -45,8 +57,8 @@ if ($method === 'POST' && $action === 'logout') {
 if ($method === 'POST') {
     $body     = Auth::getBody();
     $username = trim($body['username'] ?? '');
-    $password = $body['password'] ?? '';
-    $role     = $body['role'] ?? '';
+    $password = $body['password']      ?? '';
+    $role     = $body['role']          ?? '';
 
     if (!$username || !$password || !$role) {
         Auth::respond([
@@ -55,24 +67,31 @@ if ($method === 'POST') {
         ], 400);
     }
 
-    // Customer login (uses email)
+    // ── CUSTOMER LOGIN ────────────────────────────────────
     if ($role === 'customer') {
         $customerModel = new Customer();
         $customer      = $customerModel->verifyLogin($username, $password);
 
         if ($customer) {
-            $customer['role']    = 'customer';
-            $customer['user_id'] = 'C' . $customer['customer_id'];
-            Auth::setSession($customer);
-            unset($customer['password']);
+            // ✅ Build session data
+            $sessionData = [
+                'user_id'     => 'C' . $customer['customer_id'],
+                'full_name'   => $customer['name'],
+                'role'        => 'customer',
+                'username'    => $customer['email'],
+                'customer_id' => $customer['customer_id']
+            ];
+
+            Auth::setSession($sessionData);
+
             Auth::respond([
                 'status'  => 'success',
                 'message' => 'Login successful',
                 'data'    => [
-                    'user_id'     => $_SESSION['user_id'],
-                    'full_name'   => $customer['name'],
+                    'user_id'     => $sessionData['user_id'],
+                    'full_name'   => $sessionData['full_name'],
                     'role'        => 'customer',
-                    'customer_id' => $customer['customer_id']
+                    'customer_id' => $sessionData['customer_id']
                 ]
             ]);
         }
@@ -83,12 +102,21 @@ if ($method === 'POST') {
         ], 401);
     }
 
-    // Staff login
+    // ── STAFF LOGIN ───────────────────────────────────────
     $userModel = new User();
     $user      = $userModel->verifyLogin($username, $password, $role);
 
     if ($user) {
-        Auth::setSession($user);
+        // ✅ Build session data
+        $sessionData = [
+            'user_id'   => $user['user_id'],
+            'full_name' => $user['full_name'],
+            'role'      => $user['role'],
+            'username'  => $user['username']
+        ];
+
+        Auth::setSession($sessionData);
+
         Auth::respond([
             'status'  => 'success',
             'message' => 'Login successful',
